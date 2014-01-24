@@ -1,0 +1,10 @@
+{
+    "port": 4445,
+    "throwOnCapabilityNotPresent": true,
+    "maxSession": 10,
+    "nodePolling": 5000,
+    "cleanUpCycle": 5000,
+    "newSessionWaitTimeout": 10000,
+    "timeout": 30000,
+    "browserTimeout": 60,
+}
