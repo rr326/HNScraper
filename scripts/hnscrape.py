@@ -8,13 +8,12 @@ monkey.patch_all()
 import threading  # Must be after monkey.patch
 
 
-import time, argparse, os, os.path, re, json
+import time, argparse, os, os.path, re, json, couchdb, requests
 from urlparse import urljoin
 from time import time as now
 from bs4 import BeautifulSoup
 from pprint import pprint
 from random import randrange
-import requests
 
 import logging
 logging.PROGRESS = 15
@@ -31,6 +30,10 @@ LOGLEVEL=logging.DEBUG
 HNSLEEP=30   # Wait 30 secs, min, between every scrape, so you don't get IP-banned
 PAGE_RETRY=5
 PAGE_RETRY_WAIT=15
+COUCH_SERVER='https://rrosen326.cloudant.com'
+COUCH_UN='matenedidearandisturpetw'
+COUCH_PW='23pmLFJvWa0XhQ8mWxDxlElP'
+COUCH_DB='hackernews'
 
 def mymatch(regex, str, groupNum=1, retType=None):
     match=re.match(regex, str)
@@ -224,9 +227,8 @@ def getPage(url):
 def getHNWorker(postHNQueue):
     workList=HNWorkList()
 
-    #while True:
     more=''
-    for i in range(50):
+    while True:
         url, page, depth = workList.getUrl(more)
         try:
             more=None
@@ -242,13 +244,24 @@ def getHNWorker(postHNQueue):
     return
 
 def postHNWorker(postHNQueue):
+    couch=couchdb.Server(COUCH_SERVER)
+    couch.resource.credentials=(COUCH_UN, COUCH_PW)
+    db=couch[COUCH_DB]
+    test=db.info()  # Test connection before catching exceptions.
+    logger.info('PostHNWorker: Connection with couchdb established.')
+
     while True:
-        text = postHNQueue.get(block=True, timeout=None)
-        # Stub for now
-        fname='../data/hnpage_{0}'.format(now())
-        with open(fname, 'w') as f:
-            logger.info('WRITE: {0}'.format(fname))
-            f.write(text)
+        try:
+            text = postHNQueue.get(block=True, timeout=None)
+            recs=json.loads(text)
+
+            i=0
+            for rec in recs:
+                db.create(rec)
+                i+=1
+            logger.progress('Posted {0} records to couch.'.format(i))
+        except Exception as e:
+            logger.error('PostHNWorker - failed to post data to couch. Error: {0}'.format(e))
 
     return
 
