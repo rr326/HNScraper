@@ -202,7 +202,7 @@ pageSource=None
 
 def getPage(url):
     # Stubbing this
-    logger.debug('getPage: {0}'.format(url))
+    logger.progress('GOT:    {0}'.format(url))
     global pageSource
     # if pageSource:
     #     return pageSource
@@ -255,11 +255,12 @@ def postHNWorker(postHNQueue):
             text = postHNQueue.get(block=True, timeout=None)
             recs=json.loads(text)
 
-            i=0
-            for rec in recs:
-                db.create(rec)
-                i+=1
-            logger.progress('Posted {0} records to couch.'.format(i))
+            results = db.update(recs)
+            numSuccess=sum([success for (success, docid, rev_or_exc) in results])
+            if numSuccess == len(recs):
+                logger.progress('POSTED: {0} records to couch.'.format(numSuccess))
+            else:
+                logger.warning('POSTED: {0} of {1} records to couch.'.format(numSuccess, len(recs)))
         except Exception as e:
             logger.error('PostHNWorker - failed to post data to couch. Error: {0}'.format(e))
 
