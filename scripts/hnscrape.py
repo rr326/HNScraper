@@ -8,10 +8,13 @@ monkey.patch_all()
 import threading  # Must be after monkey.patch
 
 
-import time, argparse, os, os.path, re, requests
+import time, argparse, os, os.path, re, json
+from urlparse import urljoin
 from time import time as now
 from bs4 import BeautifulSoup
 from pprint import pprint
+from random import randrange
+import requests
 
 import logging
 logging.PROGRESS = 15
@@ -80,53 +83,25 @@ class HNWorkList():
         self.curDepth=0
         self.numPages=len(self.todoList)
 
-    def getNext(self):
-        retval = (self.todoList[self.curPage]['page'],self.curDepth)
+    def _setNext(self):
         if self.curDepth < self.todoList[self.curPage]['depth']:
             # Next will be same page, deeper
             self.curDepth += 1
         else:
             self.curDepth = 0
             self.curPage = (self.curPage + 1) % self.numPages
-        logger.debug('getNext: {0}'.format(retval))
-        return retval
 
-def processArticleTitle(html):
-    try:
-        d={}
-        tds=html.contents
-        if len(tds) != 3:
-            raise Exception('Unexpected number of tds in article body: {0}. Expected 3. Body: \n{1}'.format(len(tds), html))
-
-        d['rank']=asInt(mymatch('([0-9]*)\.', tds[0].text))
-        if tds[1].a: # Jobs have empty tds[1]
-            d['id']=mymatch('up_([0-9]*)',tds[1].a.attrs['id'])
-
-        d['title']=tds[2].a.text
-        d['href']=tds[2].a.attrs['href']
-        if tds[2].span:
-            d['domain']=str(mymatch(' *\(([^)]*)\) *', tds[2].span.text))
-    except Exception as e:
-        print 'Error:\n{0}\n{1}'.format(e, html)
-
-    return d
+    def getUrl(self, more):
+        if self.curDepth==0:
+            url = self.todoList[self.curPage]['page']
+        else:
+            url = urljoin(self.todoList[self.curPage]['page'], more)
+            #logger.debug('getUrl: {0} from {1} ## {2}'.format(url, self.todoList[self.curPage]['page'], more))
+        self._setNext()
+        return url,  self.todoList[self.curPage]['page'], self.curDepth
 
 
-def processArticlePoints(html):
-    try:
-        d={}
-        tds=html.contents
-        if len(tds) != 2:
-            raise Exception('Unexpected number of tds in article points line: {0}. Expected 2. Body: \n{1}'.format(len(tds), html))
 
-        if tds[1].span: # jobs have no points
-            d['points']=asInt(mymatch('([0-9]*) points',tds[1].span.text))
-            d['author']=mymatch('user\?id=(.*)',tds[1].find_all('a')[0].attrs['href'])
-            d['comments']=asInt(mymatch('([0-9]*) comments', tds[1].find_all('a')[1].text, retType='zero_string')) # 'Discuss' has no comments
-    except Exception as e:
-        print 'Error:\n{0}\n{1}'.format(e, html)
-
-    return d
 
 class HNPage():
     def __init__(self, html, pageName, pageDepth):
@@ -137,7 +112,11 @@ class HNPage():
         self.articles=[]
         self.more=None
 
-        self.processHNPage()
+        try:
+            self.processHNPage()
+        except Exception as e:
+            logger.error('HNPage. Failed to parse page: {0}:{1}. Error:\n{2}\nHtml:\n******\n{3}\n*******'.format(
+                self.pageName, self.pageDepth, e, html))
 
 
     def processHNPage(self):
@@ -149,11 +128,14 @@ class HNPage():
             raise Exception('Unexpected length of main body: {0} (expected 92)'.format(len(trs)))
 
         for i in range(30):
-            res0 = processArticleTitle(trs[i*3])
-            res1 = processArticlePoints(trs[i*3+1])
+            res0 = self.processArticleTitle(trs[i*3])
+            res1 = self.processArticlePoints(trs[i*3+1])
             # Skip tr[2] - just a spacer
             res0.update(res1)
             res0['pagerow']=i
+            res0['timestamp']=self.timestamp
+            res0['pageName']=self.pageName
+            res0['pageDepth']=self.pageDepth
             self.articles.append(res0)
 
         if not trs[91].find('a').text=='More':
@@ -162,38 +144,81 @@ class HNPage():
             self.more=trs[91].find('a').attrs['href']
         return
 
+    def processArticleTitle(self, html):
+        try:
+            d={}
+            tds=html.contents
+            if len(tds) != 3:
+                logger.error('processArticleTitle Aborting - Unexpected number of tds in article body: {0}. Expected 3. Body: \n{1}'.format(len(tds), html.prettify()))
+                return d
+            d['rank']=asInt(mymatch('([0-9]*)\.', tds[0].text))
+            if tds[1].a: # Jobs have empty tds[1]
+                d['id']=mymatch('up_([0-9]*)',tds[1].a.attrs['id'])
+
+            d['title']=tds[2].a.text
+            d['href']=tds[2].a.attrs['href']
+            if tds[2].span:
+                d['domain']=str(mymatch(' *\(([^)]*)\) *', tds[2].span.text))
+        except Exception as e:
+            logger.debug('processArticleTitle - Error:\n{0}\n{1}'.format(e, html))
+
+        return d
+
+
+    def processArticlePoints(self, html):
+        try:
+            d={}
+            tds=html.contents
+            if len(tds) != 2:
+                logger.error('processArticlePoints Aborting - Unexpected number of tds in article body: {0}. Expected 2. Body: \n{1}'.format(len(tds), html.prettify()))
+                return d
+            if tds[1].span: # jobs have no points
+                d['points']=asInt(mymatch('([0-9]*) points',tds[1].span.text))
+                d['author']=mymatch('user\?id=(.*)',tds[1].find_all('a')[0].attrs['href'])
+                d['comments']=asInt(mymatch('([0-9]*) comments', tds[1].find_all('a')[1].text, retType='zero_string')) # 'Discuss' has no comments
+        except Exception as e:
+            logger.debug('processArticlePoints - Error:\n{0}\n{1}'.format(e, html))
+
+        return d
+
+    def json(self):
+        return json.dumps(self.articles)
+
 global pageSource
 pageSource=None
 
-def getPage(url, depth):
+def getPage(url):
     # Stubbing this
+    logger.debug('getPage: {0}'.format(url))
     global pageSource
-    if pageSource:
-        return pageSource
+    # if pageSource:
+    #     return pageSource
     r = requests.get(url)
     pageSource = r.content
     logger.debug('getPage - just downloaded: {0}'.format(url))
     return pageSource
 
 def getHNWorker(postHNQueue):
-    print 'in getHNWorker'
     workList=HNWorkList()
 
     #while True:
+    more=''
     for i in range(50):
-        page, depth = workList.getNext()
-        pageSource=getPage(page, depth)
+        url, page, depth = workList.getUrl(more)
+        pageSource=getPage(url)
         hnPage=HNPage(pageSource, page, depth)
-        postHNQueue.put(page)
+        postHNQueue.put(hnPage.json())
+        more=hnPage.more
+        # Note - you need, at least, a sleep(0) since none of this is blocking, even though it is monkey patched
+        gevent.sleep(HNSLEEP)
 
     return
 
 def postHNWorker(postHNQueue):
-    print 'in postHNWorker'
     while True:
         text = postHNQueue.get(block=True, timeout=None)
         # Stub for now
-        fname='../data/hnpage_{0}'.format(now())
+        fname='../data/hnpage_{0}_{1}'.format(now(),randrange(10000))
         with open(fname, 'w') as f:
             logger.info('WRITE: {0}'.format(fname))
             f.write(text)
