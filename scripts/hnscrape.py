@@ -116,14 +116,19 @@ class HNPage():
             self.processHNPage()
         except Exception as e:
             logger.error('HNPage. Failed to parse page: {0}:{1}. Error:\n{2}\nHtml:\n******\n{3}\n*******'.format(
-                self.pageName, self.pageDepth, e, html))
+                self.pageName, self.pageDepth, e, self.html))
 
 
     def processHNPage(self):
         self.soup = BeautifulSoup(self.html)
-        tbl2 = self.soup.find_all('table')[2]
+        tbls = self.soup.find_all('table')
+        if not tbls or len(tbls)<3:
+            raise Exception('processHNPage - expected tbls >3. Got: {0}\npageName: {2}, pageDepth: {3}\n******\n{1}\n*******'.format(len(tbls), self.html, self.pageName, self.pageDepth))
+        tbl2=tbls[2]
         trs=tbl2.find_all('tr')
 
+        if not trs:
+            raise Exception('processHNPage - no trs!')
         if len(trs) != 92:
             raise Exception('Unexpected length of main body: {0} (expected 92)'.format(len(trs)))
 
@@ -195,7 +200,6 @@ def getPage(url):
     #     return pageSource
     r = requests.get(url)
     pageSource = r.content
-    logger.debug('getPage - just downloaded: {0}'.format(url))
     return pageSource
 
 def getHNWorker(postHNQueue):
@@ -218,7 +222,7 @@ def postHNWorker(postHNQueue):
     while True:
         text = postHNQueue.get(block=True, timeout=None)
         # Stub for now
-        fname='../data/hnpage_{0}_{1}'.format(now(),randrange(10000))
+        fname='../data/hnpage_{0}'.format(now())
         with open(fname, 'w') as f:
             logger.info('WRITE: {0}'.format(fname))
             f.write(text)
