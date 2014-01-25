@@ -29,6 +29,8 @@ logger = logging.getLogger(__name__)
 LOGFILE='hnscrape.log'
 LOGLEVEL=logging.DEBUG
 HNSLEEP=30   # Wait 30 secs, min, between every scrape, so you don't get IP-banned
+PAGE_RETRY=5
+PAGE_RETRY_WAIT=15
 
 def mymatch(regex, str, groupNum=1, retType=None):
     match=re.match(regex, str)
@@ -77,8 +79,8 @@ def loggingSetup(log_level, logfile):
 
 class HNWorkList():
     def __init__(self):
-        self.todoList=[{'page':'http://news.ycombinator.com/', 'depth':2},  # depth 0 is page 1
-              {'page':'http://news.ycombinator.com/newest/', 'depth':1}]
+        self.todoList=[{'page':'http://news.ycombinator.com', 'depth':2},  # depth 0 is page 1
+              {'page':'http://news.ycombinator.com/newest', 'depth':1}]
         self.curPage=0
         self.curDepth=0
         self.numPages=len(self.todoList)
@@ -92,6 +94,8 @@ class HNWorkList():
             self.curPage = (self.curPage + 1) % self.numPages
 
     def getUrl(self, more):
+        if more == None:
+            more=''
         if self.curDepth==0:
             url = self.todoList[self.curPage]['page']
         else:
@@ -149,12 +153,12 @@ class HNPage():
             self.more=trs[91].find('a').attrs['href']
         return
 
-    def processArticleTitle(self, html):
+    def processArticleTitle(self, soup):
         try:
             d={}
-            tds=html.contents
+            tds=soup.contents
             if len(tds) != 3:
-                logger.error('processArticleTitle Aborting - Unexpected number of tds in article body: {0}. Expected 3. Body: \n{1}'.format(len(tds), html.prettify()))
+                logger.error('processArticleTitle Aborting - Unexpected number of tds in article body: {0}. Expected 3. Body: \n{1}'.format(len(tds), soup.prettify()))
                 return d
             d['rank']=asInt(mymatch('([0-9]*)\.', tds[0].text))
             if tds[1].a: # Jobs have empty tds[1]
@@ -165,30 +169,31 @@ class HNPage():
             if tds[2].span:
                 d['domain']=str(mymatch(' *\(([^)]*)\) *', tds[2].span.text))
         except Exception as e:
-            logger.debug('processArticleTitle - Error:\n{0}\n{1}'.format(e, html))
+            logger.debug('processArticleTitle - Error:\n{0}\n{1}'.format(e, soup.prettify()))
 
         return d
 
 
-    def processArticlePoints(self, html):
+    def processArticlePoints(self, soup):
         try:
             d={}
-            tds=html.contents
+            tds=soup.contents
             if len(tds) != 2:
-                logger.error('processArticlePoints Aborting - Unexpected number of tds in article body: {0}. Expected 2. Body: \n{1}'.format(len(tds), html.prettify()))
+                logger.error('processArticlePoints Aborting - Unexpected number of tds in article body: {0}. Expected 2. Body: \n{1}'.format(len(tds), soup.prettify()))
                 return d
             if tds[1].span: # jobs have no points
                 d['points']=asInt(mymatch('([0-9]*) points',tds[1].span.text))
                 d['author']=mymatch('user\?id=(.*)',tds[1].find_all('a')[0].attrs['href'])
                 d['comments']=asInt(mymatch('([0-9]*) comments', tds[1].find_all('a')[1].text, retType='zero_string')) # 'Discuss' has no comments
         except Exception as e:
-            logger.debug('processArticlePoints - Error:\n{0}\n{1}'.format(e, html))
+            logger.debug('processArticlePoints - Error:\n{0}\n{1}'.format(e, soup.prettify()))
 
         return d
 
     def json(self):
         return json.dumps(self.articles)
 
+# Only for debugging
 global pageSource
 pageSource=None
 
@@ -198,9 +203,23 @@ def getPage(url):
     global pageSource
     # if pageSource:
     #     return pageSource
-    r = requests.get(url)
+    for i in range(PAGE_RETRY):
+        try:
+            r = requests.get(url)
+            if not r.ok:
+                logger.warning('getPage. requests returned not ok.  status_code: {0}. reason: {1}  Url: {2}'.format(r.status_code, r.reason,  url))
+                gevent.sleep(PAGE_RETRY_WAIT)
+                continue
+            else:
+                break
+        except Exception as e:
+            logger.error('getPage: requests raised an error: {0}'.format(e))
+            gevent.sleep(PAGE_RETRY_WAIT)
+            continue
+        raise Exception('getPage. Unable to get page {0}. Failed {1} times.'.format(url, PAGE_RETRY))
+
     pageSource = r.content
-    return pageSource
+    return r.content
 
 def getHNWorker(postHNQueue):
     workList=HNWorkList()
@@ -209,10 +228,14 @@ def getHNWorker(postHNQueue):
     more=''
     for i in range(50):
         url, page, depth = workList.getUrl(more)
-        pageSource=getPage(url)
-        hnPage=HNPage(pageSource, page, depth)
-        postHNQueue.put(hnPage.json())
-        more=hnPage.more
+        try:
+            more=None
+            pageSource=getPage(url)
+            hnPage=HNPage(pageSource, page, depth)
+            postHNQueue.put(hnPage.json())
+            more=hnPage.more
+        except Exception as e:
+            logger.warning('getHNWorker: Failed on page {0}. Skipping page.'.format(url))
         # Note - you need, at least, a sleep(0) since none of this is blocking, even though it is monkey patched
         gevent.sleep(HNSLEEP)
 
