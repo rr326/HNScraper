@@ -3,7 +3,6 @@ from __future__ import division
 import gevent
 from gevent import monkey
 from gevent import queue
-from gevent import pool
 monkey.patch_all()
 import threading  # Must be after monkey.patch
 
@@ -29,14 +28,14 @@ LOGFILE='hnscrape.log'
 LOGLEVEL=logging.DEBUG
 HNSLEEP=30   # Wait 30 secs, min, between every scrape, so you don't get IP-banned
 PAGE_RETRY=5
-PAGE_RETRY_WAIT=15
+PAGE_RETRY_WAIT=30
 COUCH_SERVER='https://rrosen326.cloudant.com'
 COUCH_UN='matenedidearandisturpetw'
 COUCH_PW='23pmLFJvWa0XhQ8mWxDxlElP'
 COUCH_DB='hackernews'
 
-def mymatch(regex, str, groupNum=1, retType=None):
-    match=re.match(regex, str)
+def mymatch(regex, text, groupNum=1, retType=None):
+    match=re.match(regex, text)
     if match:
         return match.group(groupNum)
     else:
@@ -45,13 +44,13 @@ def mymatch(regex, str, groupNum=1, retType=None):
         elif retType=='zero_string':
             return '0'
         else:
-            return str
+            return text
 
-def asInt(str):
+def asInt(text):
     try:
-        return int(str)
+        return int(text)
     except:
-        return str
+        return text
 
 
 
@@ -80,7 +79,7 @@ def loggingSetup(log_level, logfile):
 
     return
 
-class HNWorkList():
+class HNWorkList(object):
     def __init__(self):
         self.todoList=[{'page':'http://news.ycombinator.com', 'depth':2},  # depth 0 is page 1
               {'page':'http://news.ycombinator.com/newest', 'depth':1}]
@@ -110,7 +109,7 @@ class HNWorkList():
 
 
 
-class HNPage():
+class HNPage(object):
     def __init__(self, html, pageName, pageDepth):
         self.timestamp=now()
         self.pageName=pageName
@@ -118,6 +117,7 @@ class HNPage():
         self.html=html
         self.articles=[]
         self.more=None
+        self.soup=None
 
         try:
             self.processHNPage()
@@ -196,16 +196,10 @@ class HNPage():
     def json(self):
         return json.dumps(self.articles)
 
-# Only for debugging
-global pageSource
-pageSource=None
 
 def getPage(url):
-    # Stubbing this
-    logger.progress('GOT:    {0}'.format(url))
-    global pageSource
-    # if pageSource:
-    #     return pageSource
+    r={'ok':False}
+
     for i in range(PAGE_RETRY):
         try:
             r = requests.get(url)
@@ -219,10 +213,12 @@ def getPage(url):
             logger.error('getPage: requests raised an error: {0}'.format(e))
             gevent.sleep(PAGE_RETRY_WAIT)
             continue
-        raise Exception('getPage. Unable to get page {0}. Failed {1} times.'.format(url, PAGE_RETRY))
 
-    pageSource = r.content
-    return r.content
+    if r.ok:
+        logger.progress('GOT:    {0}'.format(url))
+        return r.content
+    else:
+        raise Exception('getPage. Unable to get page {0}. Failed {1} times.'.format(url, PAGE_RETRY))
 
 def getHNWorker(postHNQueue):
     workList=HNWorkList()
@@ -247,7 +243,7 @@ def postHNWorker(postHNQueue):
     couch=couchdb.Server(COUCH_SERVER)
     couch.resource.credentials=(COUCH_UN, COUCH_PW)
     db=couch[COUCH_DB]
-    test=db.info()  # Test connection before catching exceptions.
+    db.info()  # Test connection before catching exceptions.
     logger.info('PostHNWorker: Connection with couchdb established.')
 
     while True:
