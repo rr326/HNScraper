@@ -11,6 +11,7 @@ import time, argparse, os, os.path, re, json, couchdb, requests
 from urlparse import urljoin
 from time import time as now
 from bs4 import BeautifulSoup
+from datetime import datetime, timedelta
 from pprint import pprint
 from random import randrange
 
@@ -26,13 +27,16 @@ logger = logging.getLogger(__name__)
 
 LOGFILE='hnscrape.log'
 LOGLEVEL=logging.DEBUG
-HNSLEEP=30   # Wait 30 secs, min, between every scrape, so you don't get IP-banned
 PAGE_RETRY=5
 PAGE_RETRY_WAIT=30
 COUCH_SERVER='https://rrosen326.cloudant.com'
 COUCH_UN='matenedidearandisturpetw'
 COUCH_PW='23pmLFJvWa0XhQ8mWxDxlElP'
 COUCH_DB='hackernews'
+SHORT_WAIT=15
+LONG_WAIT=285
+PAGES_TO_GET=todoList=[{'page':'http://news.ycombinator.com', 'depth':0, 'wait': SHORT_WAIT},  # depth 0 is page 1
+              {'page':'http://news.ycombinator.com/news2', 'depth':0, 'wait': LONG_WAIT}]
 
 def mymatch(regex, text, groupNum=1, retType=None):
     match=re.match(regex, text)
@@ -81,8 +85,7 @@ def loggingSetup(log_level, logfile):
 
 class HNWorkList(object):
     def __init__(self):
-        self.todoList=[{'page':'http://news.ycombinator.com', 'depth':2},  # depth 0 is page 1
-              {'page':'http://news.ycombinator.com/newest', 'depth':1}]
+        self.todoList=PAGES_TO_GET
         self.curPage=0
         self.curDepth=0
         self.numPages=len(self.todoList)
@@ -96,15 +99,16 @@ class HNWorkList(object):
             self.curPage = (self.curPage + 1) % self.numPages
 
     def getUrl(self, more):
-        if more == None:
+        if more is None:
             more=''
         if self.curDepth==0:
             url = self.todoList[self.curPage]['page']
         else:
             url = urljoin(self.todoList[self.curPage]['page'], more)
             #logger.debug('getUrl: {0} from {1} ## {2}'.format(url, self.todoList[self.curPage]['page'], more))
+        wait = self.todoList[self.curPage]['wait']
         self._setNext()
-        return url,  self.todoList[self.curPage]['page'], self.curDepth
+        return url,  self.todoList[self.curPage]['page'], self.curDepth, wait
 
 
 
@@ -157,8 +161,8 @@ class HNPage(object):
         return
 
     def processArticleTitle(self, soup):
+        d={}
         try:
-            d={}
             tds=soup.contents
             if len(tds) != 3:
                 logger.error('processArticleTitle Aborting - Unexpected number of tds in article body: {0}. Expected 3. Body: \n{1}'.format(len(tds), soup.prettify()))
@@ -178,8 +182,8 @@ class HNPage(object):
 
 
     def processArticlePoints(self, soup):
+        d={}
         try:
-            d={}
             tds=soup.contents
             if len(tds) != 2:
                 logger.error('processArticlePoints Aborting - Unexpected number of tds in article body: {0}. Expected 2. Body: \n{1}'.format(len(tds), soup.prettify()))
@@ -188,6 +192,21 @@ class HNPage(object):
                 d['points']=asInt(mymatch('([0-9]*) points',tds[1].span.text))
                 d['author']=mymatch('user\?id=(.*)',tds[1].find_all('a')[0].attrs['href'])
                 d['comments']=asInt(mymatch('([0-9]*) comments', tds[1].find_all('a')[1].text, retType='zero_string')) # 'Discuss' has no comments
+                match=re.match('\s*([0-9]*) ([^ ]*) ago.*', tds[1].contents[3])
+                if match:
+                    if match.group(2)[:6]=='minute':
+                        created=datetime.fromtimestamp(self.timestamp)-timedelta(minutes=int(match.group(1)))
+                        created=created.strftime('%Y-%m-%d %H:%M:%S')
+                    elif match.group(2)[:4]=='hour':
+                        created=datetime.fromtimestamp(self.timestamp)-timedelta(hours=int(match.group(1)))
+                        created=created.strftime('%Y-%m-%d %H:%M:%S')
+                    else:
+                        logger.warning('processArticlesPoints - unexpected create time: {0}'.format(match.group(0)))
+                        created=match.group(0)
+                else:
+                    logger.warning('processArticlesPoints - unexpected create time failed to match: {0}'.format(tds[1].contents[3]))
+                    created=tds[1].contents[3]
+                d['created']=created
         except Exception as e:
             logger.debug('processArticlePoints - Error:\n{0}\n{1}'.format(e, soup.prettify()))
 
@@ -225,7 +244,7 @@ def getHNWorker(postHNQueue):
 
     more=''
     while True:
-        url, page, depth = workList.getUrl(more)
+        url, page, depth, wait_time = workList.getUrl(more)
         try:
             more=None
             pageSource=getPage(url)
@@ -235,7 +254,7 @@ def getHNWorker(postHNQueue):
         except Exception as e:
             logger.warning('getHNWorker: Failed on page {0}. Skipping page.'.format(url))
         # Note - you need, at least, a sleep(0) since none of this is blocking, even though it is monkey patched
-        gevent.sleep(HNSLEEP)
+        gevent.sleep(wait_time)
 
     return
 
@@ -264,7 +283,8 @@ def postHNWorker(postHNQueue):
 
 
 def main():
-    print 'in main'
+    logger.info('hnscrape: starting.')
+
     jobs=[]
 
     postHNQueue=gevent.queue.Queue()
@@ -274,7 +294,6 @@ def main():
 
     gevent.joinall(jobs)
 
-    print 'leaving main'
 
 
 if __name__=='__main__':
