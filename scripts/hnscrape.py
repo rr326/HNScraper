@@ -3,8 +3,11 @@ from __future__ import division
 import gevent
 from gevent import monkey
 from gevent import queue
-monkey.patch_all()
 import threading  # Must be after monkey.patch
+if __name__=='__main__':
+    # Do not monkey patch when a library - it messes up ipython (which I use for testing)
+    monkey.patch_all()
+
 
 
 import time, argparse, os, os.path, re, json, couchdb, requests
@@ -12,7 +15,7 @@ from urlparse import urljoin
 from time import time as now
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
-from pprint import pprint
+from pprint import  pformat
 from random import randrange
 
 import logging
@@ -110,16 +113,59 @@ class HNWorkList(object):
         self._setNext()
         return url,  self.todoList[self.curPage]['page'], self.curDepth, wait
 
+#
+# HN Content Classes:
+# HNPage
+#    HNPostSnap - Snapshot of the post at a moment in time
+#    HNPostSnap
+#    ...
+#   HNPostSnap (30/page)
+# HNPost
+#    <global data about the post: eg: Title, post time, href, highest ranking,  etc.>
+#    history: [List of HNPostData that changes - eg: points, comments, ranking]
 
+class HNPost(object):
+    def __init__(self):
+        self.data={}
+        self.globalFields=['id','title','href','author' , 'domain', 'created']
+
+    def newFromPostSnap(self, postSnap):
+        self.data['history']=[{}]
+        for key in self.globalFields:
+            if key in postSnap.data:
+                self.data[key]=postSnap.data[key]
+        for key in postSnap.data:
+            if key not in self.globalFields:
+                self.data['history'][0][key]=postSnap.data[key]
+
+    def toJSON(self):
+        return json.dumps(self.data)
+
+    def __repr__(self):
+        return pformat(self.data)
+
+
+class HNPostSnap(object):
+    def __init__(self, *postDataDicts):
+        self.data={}
+        for postDataDict in postDataDicts:
+            self.add(postDataDict)
+
+    def add(self, newDict):
+        self.data.update(newDict)
+
+    def __repr__(self):
+        return pformat(self.data)
 
 
 class HNPage(object):
     def __init__(self, html, pageName, pageDepth):
         self.timestamp=now()
+        self.timestamp_str=datetime.fromtimestamp(self.timestamp).strftime('%Y-%m-%d %H:%M:%S')
         self.pageName=pageName
         self.pageDepth=pageDepth
         self.html=html
-        self.articles=[]
+        self.postSnaps=[]
         self.more=None
         self.soup=None
 
@@ -144,15 +190,17 @@ class HNPage(object):
             raise Exception('Unexpected length of main body: {0} (expected 92)'.format(len(trs)))
 
         for i in range(30):
-            res0 = self.processArticleTitle(trs[i*3])
-            res1 = self.processArticlePoints(trs[i*3+1])
+            res0 = self.processPostTitle(trs[i*3])
+            res1 = self.processPostPoints(trs[i*3+1])
             # Skip tr[2] - just a spacer
-            res0.update(res1)
-            res0['pagerow']=i
-            res0['timestamp']=self.timestamp
-            res0['pageName']=self.pageName
-            res0['pageDepth']=self.pageDepth
-            self.articles.append(res0)
+            postSnap=HNPostSnap(res0, res1)
+            postSnap.add({'pagerow': i})
+            postSnap.add({'timestamp': self.timestamp})
+            postSnap.add({'timestamp_str': self.timestamp_str})
+            postSnap.add({'pageName':self.pageName})
+            postSnap.add({'pageDepth':self.pageDepth})
+
+            self.postSnaps.append(postSnap)
 
         if not trs[91].find('a').text=='More':
             raise Exception('No More on page. trs[91]: {0}'.format(trs[91].prettify()))
@@ -160,7 +208,7 @@ class HNPage(object):
             self.more=trs[91].find('a').attrs['href']
         return
 
-    def processArticleTitle(self, soup):
+    def processPostTitle(self, soup):
         d={}
         try:
             tds=soup.contents
@@ -176,12 +224,12 @@ class HNPage(object):
             if tds[2].span:
                 d['domain']=str(mymatch(' *\(([^)]*)\) *', tds[2].span.text))
         except Exception as e:
-            logger.debug('processArticleTitle - Error:\n{0}\n{1}'.format(e, soup.prettify()))
+            logger.debug('processPostTitle - Error:\n{0}\n{1}'.format(e, soup.prettify()))
 
         return d
 
 
-    def processArticlePoints(self, soup):
+    def processPostPoints(self, soup):
         d={}
         try:
             tds=soup.contents
@@ -196,13 +244,19 @@ class HNPage(object):
                 if match:
                     if match.group(2)[:6]=='minute':
                         created=datetime.fromtimestamp(self.timestamp)-timedelta(minutes=int(match.group(1)))
-                        created=created.strftime('%Y-%m-%d %H:%M:%S')
                     elif match.group(2)[:4]=='hour':
                         created=datetime.fromtimestamp(self.timestamp)-timedelta(hours=int(match.group(1)))
+                    elif match.group(2)[:3]=='day':
+                        created=datetime.fromtimestamp(self.timestamp)-timedelta(days=int(match.group(1)))
+                    else:
+                        logger.warning('processPostPoints - unexpected create time: {0}'.format(match.group(0)))
+                        created=None
+
+                    if created:
                         created=created.strftime('%Y-%m-%d %H:%M:%S')
                     else:
-                        logger.warning('processArticlesPoints - unexpected create time: {0}'.format(match.group(0)))
                         created=match.group(0)
+
                 else:
                     logger.warning('processArticlesPoints - unexpected create time failed to match: {0}'.format(tds[1].contents[3]))
                     created=tds[1].contents[3]
@@ -213,7 +267,7 @@ class HNPage(object):
         return d
 
     def json(self):
-        return json.dumps(self.articles)
+        return json.dumps([post.json() for post in self.postSnaps])
 
 
 def getPage(url):
