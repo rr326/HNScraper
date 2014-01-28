@@ -143,18 +143,28 @@ class HNPost(object):
             if key in postSnap.data:
                 self.data[key]=postSnap.data[key]
         for key in postSnap.data:
-            if key not in self.globalFields:
-                self.data['history'][0][key]=postSnap.data[key]
+            self.data['history'][0][key]=postSnap.data[key]
 
     def addNewSnap(self, postSnap):
+        newHist={}
+
         # First validate
         for key in self.globalFields:
             if key == 'created':
                 continue  # Skip 'created' since it is inexact (eg: 1 hour ago)
-            if self.data[key] != postSnap.data[key]:
-                logger.warning('HNPost.addNewSnap: new data != old. key:{0}  old: {1}, new: {2}'.format(key, self.data[key], postSnap.data[key]))
+            if key not in postSnap.data:
+                postSnap.data[key]=None
+            if key not in self.data:
+                self.data[key]=None
+            if postSnap.data[key] !=  self.data[key]:
+                # Keep track of changes to global fields, and use latest value in globals
+                self.data[key] = postSnap.data[key]
+                newHist[key]=postSnap.data[key]
+                if key+'_changes' in self.data:
+                    self.data[key+'_changes'] += 1
+                else:
+                    self.data[key+'_changes'] = 1
 
-        newHist={}
         for key in postSnap.data:
             if key not in self.globalFields:
                 newHist[key]=postSnap.data[key]
@@ -255,11 +265,12 @@ class HNPage(object):
                 logger.error('processArticleTitle Aborting - Unexpected number of tds in article body: {0}. Expected 3. Body: \n{1}'.format(len(tds), soup.prettify()))
                 return d
             d['rank']=asInt(mymatch('([0-9]*)\.', tds[0].text))
-            if tds[1].a: # Jobs have empty tds[1]
-                d['id']=mymatch('up_([0-9]*)',tds[1].a.attrs['id'])
-
             d['title']=tds[2].a.text
             d['href']=tds[2].a.attrs['href']
+            if tds[1].a:
+                d['id']=mymatch('up_([0-9]*)',tds[1].a.attrs['id'])
+            else:  # Jobs have empty tds[1]. Use href and hope it's invariant
+                d['id']=d['href']
             if tds[2].span:
                 d['domain']=str(mymatch(' *\(([^)]*)\) *', tds[2].span.text))
         except Exception as e:
@@ -361,12 +372,15 @@ def postHNWorker(postHNQueue):
     while True:
         try:
             hnPage = postHNQueue.get(block=True, timeout=None)
+            i=0
             for postSnap in hnPage.postSnaps:
                 try:
                     postSnap.addOrUpdateCouch(db)
+                    i+=1
                 except Exception as e:
                     logger.error('postHNWorker. Failure posting rec to couch. id: {0}'.format(postSnap.data['id'] if 'id' in postSnap.data else '<id not found>'))
-                    logger.error('  >> data: \n{0}'.format(pformat(postSnap.data)))
+                    logger.error('  >> e: {1}\n  data: \n{0}'.format(pformat(postSnap.data), e))
+            logger.progress('POSTED: {0} records to couch'.format(i))
         except Exception as e:
             logger.error('postHNWorker - postHNQueue.get errored: {0}'.format(e))
 
