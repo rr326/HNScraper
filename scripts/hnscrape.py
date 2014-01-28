@@ -36,6 +36,7 @@ COUCH_SERVER='https://rrosen326.cloudant.com'
 COUCH_UN='matenedidearandisturpetw'
 COUCH_PW='23pmLFJvWa0XhQ8mWxDxlElP'
 COUCH_DB='hackernews'
+COUCH_ID_VIEW='by/id'
 SHORT_WAIT=15
 LONG_WAIT=285
 PAGES_TO_GET=todoList=[{'page':'http://news.ycombinator.com', 'depth':0, 'wait': SHORT_WAIT},  # depth 0 is page 1
@@ -125,11 +126,18 @@ class HNWorkList(object):
 #    history: [List of HNPostData that changes - eg: points, comments, ranking]
 
 class HNPost(object):
-    def __init__(self):
+    def __init__(self, postSnap=None, existingPostData=None):
         self.data={}
         self.globalFields=['id','title','href','author' , 'domain', 'created']
+        if postSnap and existingPostData:
+            raise Exception('HNPost - __init__ from postSnap OR existingPostData, not both')
 
-    def newFromPostSnap(self, postSnap):
+        if postSnap:
+            self.__newFromPostSnap(postSnap)
+        elif existingPostData:
+            self.data=existingPostData
+
+    def __newFromPostSnap(self, postSnap):
         self.data['history']=[{}]
         for key in self.globalFields:
             if key in postSnap.data:
@@ -138,12 +146,28 @@ class HNPost(object):
             if key not in self.globalFields:
                 self.data['history'][0][key]=postSnap.data[key]
 
+    def addNewSnap(self, postSnap):
+        # First validate
+        for key in self.globalFields:
+            if key == 'created':
+                continue  # Skip 'created' since it is inexact (eg: 1 hour ago)
+            if self.data[key] != postSnap.data[key]:
+                logger.warning('HNPost.addNewSnap: new data != old. key:{0}  old: {1}, new: {2}'.format(key, self.data[key], postSnap.data[key]))
+
+        newHist={}
+        for key in postSnap.data:
+            if key not in self.globalFields:
+                newHist[key]=postSnap.data[key]
+        self.data['history'].append(newHist)
+
     def toJSON(self):
         return json.dumps(self.data)
 
     def __repr__(self):
         return pformat(self.data)
 
+    def getData(self):
+        return self.data
 
 class HNPostSnap(object):
     def __init__(self, *postDataDicts):
@@ -156,6 +180,20 @@ class HNPostSnap(object):
 
     def __repr__(self):
         return pformat(self.data)
+
+    def addOrUpdateCouch(self, db):
+        view=db.view(COUCH_ID_VIEW, key=self.data['id'])
+        if len(view)==0:
+            # Create
+            post=HNPost(postSnap=self)
+        elif len(view)==1:
+            # Update
+            post=HNPost(existingPostData=view.rows[0].value)
+            post.addNewSnap(self)
+        else:
+            raise Exception('HNPostSnap - multiple existing posts with id = {0}'.format(self.data['id']))
+        # Save it
+        db.update([post.getData()])
 
 
 class HNPage(object):
@@ -197,8 +235,9 @@ class HNPage(object):
             postSnap.add({'pagerow': i})
             postSnap.add({'timestamp': self.timestamp})
             postSnap.add({'timestamp_str': self.timestamp_str})
-            postSnap.add({'pageName':self.pageName})
-            postSnap.add({'pageDepth':self.pageDepth})
+            # Only add pageName if not a news page
+            if self.pageName[:27] != 'http://news.ycombinator.com':
+                postSnap.add({'pageName':self.pageName})
 
             self.postSnaps.append(postSnap)
 
@@ -303,7 +342,7 @@ def getHNWorker(postHNQueue):
             more=None
             pageSource=getPage(url)
             hnPage=HNPage(pageSource, page, depth)
-            postHNQueue.put(hnPage.json())
+            postHNQueue.put(hnPage)
             more=hnPage.more
         except Exception as e:
             logger.warning('getHNWorker: Failed on page {0}. Skipping page.'.format(url))
@@ -321,17 +360,15 @@ def postHNWorker(postHNQueue):
 
     while True:
         try:
-            text = postHNQueue.get(block=True, timeout=None)
-            recs=json.loads(text)
-
-            results = db.update(recs)
-            numSuccess=sum([success for (success, docid, rev_or_exc) in results])
-            if numSuccess == len(recs):
-                logger.progress('POSTED: {0} records to couch.'.format(numSuccess))
-            else:
-                logger.warning('POSTED: {0} of {1} records to couch.'.format(numSuccess, len(recs)))
+            hnPage = postHNQueue.get(block=True, timeout=None)
+            for postSnap in hnPage.postSnaps:
+                try:
+                    postSnap.addOrUpdateCouch(db)
+                except Exception as e:
+                    logger.error('postHNWorker. Failure posting rec to couch. id: {0}'.format(postSnap.data['id'] if 'id' in postSnap.data else '<id not found>'))
+                    logger.error('  >> data: \n{0}'.format(pformat(postSnap.data)))
         except Exception as e:
-            logger.error('PostHNWorker - failed to post data to couch. Error: {0}'.format(e))
+            logger.error('postHNWorker - postHNQueue.get errored: {0}'.format(e))
 
     return
 
@@ -348,6 +385,17 @@ def main():
 
     gevent.joinall(jobs)
 
+# Need to add the following to a helper function.
+# Permissions: (read/write) matenedidearandisturpetw
+# _design/by
+# {
+#   "_id": "_design/by",
+#   "_rev": "1-0b319125d8d1a3af8251801544d650c9",
+#   "value": {
+#     "rev": "1-0b319125d8d1a3af8251801544d650c9"
+#   },
+#   "key": "_design/by"
+# }
 
 
 if __name__=='__main__':
