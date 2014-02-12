@@ -53,7 +53,7 @@ def loggingSetup(log_level, logfile, errorsOnlyLog):
     # File logging
     h=config.logging.FileHandler(logfile)
     h.setLevel(log_level)
-    formatter=config.logging.Formatter('%(asctime)s - %(name)s - %(module)s - %(levelname)s - %(lineno)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    formatter=config.logging.Formatter('%(asctime)s - %(name)s - %(module)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     h.setFormatter(formatter)
     logger.addHandler(h)
 
@@ -449,7 +449,8 @@ def main():
 
     gevent.joinall(jobs)
 
-
+    logger.info('hnscrape: terminating.')
+    return
 
 if __name__=='__main__':
     loggingSetup(config.LOGLEVEL, config.LOGFILE, config.ERRORS_ONLY_LOG)
@@ -466,6 +467,7 @@ if __name__=='__main__':
 
 # TODO: Error & heartbeat monitor app
 # TODO: Daemon mode
+# TODO: Data replication, tranfer, and historical cleanup (see below)
 
 '''
 TODO

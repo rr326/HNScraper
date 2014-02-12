@@ -30,6 +30,12 @@ MOCK_PAGE=os.path.join(SCRIPT_DIR,  'test/pageSource')
 # For alerting - 1 line per error.
 ERRORS_ONLY_LOG=os.path.join(SCRIPT_DIR, 'log', 'errors_only.log')
 
+# hnmonitor config
+RUNFREQUENCY = 6  # hours
+MAXERRORS = 4
+NUMPOSTSPERPAGE=30  # Invariant, but put here so I don't hardcode
+POSTERRORTHRESHOLD=.8  # Anything less than 80% will cause an alert
+
 
 # Overrides For debugging
 # LOCAL_DEBUG=True
