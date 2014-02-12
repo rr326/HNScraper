@@ -8,7 +8,10 @@ if __name__=='__main__':
     # Do not monkey patch when a library - it messes up ipython (which I use for testing)
     monkey.patch_all()
 
+import config
 
+
+logger = config.logging.getLogger(__name__)
 
 import time, argparse, os, os.path, re, json, couchdb, requests
 from urlparse import urljoin
@@ -16,31 +19,7 @@ from time import time as now
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 from pprint import  pformat
-from random import randrange
 
-import logging
-logging.PROGRESS = 15
-logging.addLevelName(logging.PROGRESS, 'PROGRESS')
-def log_progress(self, msg, *args, **kws):
-    if self.isEnabledFor(logging.PROGRESS):
-        self._log(logging.PROGRESS, msg, args, **kws)
-logging.Logger.progress=log_progress
-logger = logging.getLogger(__name__)
-
-
-LOGFILE='hnscrape.log'
-LOGLEVEL=logging.DEBUG
-PAGE_RETRY=5
-PAGE_RETRY_WAIT=30
-COUCH_SERVER='https://rrosen326.cloudant.com'
-COUCH_UN='matenedidearandisturpetw'
-COUCH_PW='23pmLFJvWa0XhQ8mWxDxlElP'
-COUCH_DB='hackernews'
-COUCH_ID_VIEW='by/id'
-SHORT_WAIT=15
-LONG_WAIT=285
-PAGES_TO_GET=todoList=[{'page':'http://news.ycombinator.com', 'depth':0, 'wait': SHORT_WAIT},  # depth 0 is page 1
-              {'page':'http://news.ycombinator.com/news2', 'depth':0, 'wait': LONG_WAIT}]
 
 def mymatch(regex, text, groupNum=1, retType=None):
     match=re.match(regex, text)
@@ -71,17 +50,17 @@ def asInt(text):
 def loggingSetup(log_level, logfile):
     logger.setLevel(log_level)
 
-    if logging.FileHandler not in [type(h) for h in logger.handlers] :
-        fh=logging.FileHandler(logfile)
+    if config.logging.FileHandler not in [type(h) for h in logger.handlers] :
+        fh=config.logging.FileHandler(logfile)
         fh.setLevel(log_level)
-        formatter_file=logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+        formatter_file=config.logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
         fh.setFormatter(formatter_file)
         logger.addHandler(fh)
 
-    if logging.StreamHandler not in [type(h) for h in logger.handlers]:
-        ch=logging.StreamHandler()
+    if config.logging.StreamHandler not in [type(h) for h in logger.handlers]:
+        ch=config.logging.StreamHandler()
         ch.setLevel(log_level)
-        formatter_screen=logging.Formatter('%(levelname)-8s %(message)s')
+        formatter_screen=config.logging.Formatter('%(levelname)-8s %(message)s')
         ch.setFormatter(formatter_screen)
         logger.addHandler(ch)
 
@@ -89,7 +68,7 @@ def loggingSetup(log_level, logfile):
 
 class HNWorkList(object):
     def __init__(self):
-        self.todoList=PAGES_TO_GET
+        self.todoList=config.PAGES_TO_GET
         self.curPage=0
         self.curDepth=0
         self.numPages=len(self.todoList)
@@ -128,6 +107,7 @@ class HNWorkList(object):
 class HNPost(object):
     def __init__(self, postSnap=None, existingPostData=None):
         self.data={}
+        self.data['doc_type']='post'
         self.globalFields=['id','title','href','author' , 'domain', 'created']
         if postSnap and existingPostData:
             raise Exception('HNPost - __init__ from postSnap OR existingPostData, not both')
@@ -192,7 +172,7 @@ class HNPostSnap(object):
         return pformat(self.data)
 
     def addOrUpdateCouch(self, db):
-        view=db.view(COUCH_ID_VIEW, key=self.data['id'])
+        view=db.view(config.COUCH_ID_VIEW, key=self.data['id'])
         if len(view)==0:
             # Create
             post=HNPost(postSnap=self)
@@ -227,10 +207,11 @@ class HNPage(object):
     def processHNPage(self):
         self.soup = BeautifulSoup(self.html)
         tbls = self.soup.find_all('table')
-        if not tbls or len(tbls)<3:
-            raise Exception('processHNPage - expected tbls >3. Got: {0}\npageName: {2}, pageDepth: {3}\n******\n{1}\n*******'.format(len(tbls), self.html, self.pageName, self.pageDepth))
-        tbl2=tbls[2]
-        trs=tbl2.find_all('tr')
+        if not tbls or len(tbls)<3 or len(tbls) > 5:
+            raise Exception('processHNPage - expected tbls ==4 or 5. Got: {0}\npageName: {2}, pageDepth: {3}\n******\n{1}\n*******'.format(len(tbls), self.html, self.pageName, self.pageDepth))
+        # Normally there are 4 tbls. But sometimes he puts a header tbl in.
+        tblMain = tbls[2] if len(tbls) == 4 else tbls[3]
+        trs=tblMain.find_all('tr')
 
         if not trs:
             raise Exception('processHNPage - no trs!')
@@ -242,8 +223,6 @@ class HNPage(object):
             res1 = self.processPostPoints(trs[i*3+1])
             # Skip tr[2] - just a spacer
             postSnap=HNPostSnap(res0, res1)
-            postSnap.add({'pagerow': i})
-            postSnap.add({'timestamp': self.timestamp})
             postSnap.add({'timestamp_str': self.timestamp_str})
             # Only add pageName if not a news page
             if self.pageName[:27] != 'http://news.ycombinator.com':
@@ -269,8 +248,15 @@ class HNPage(object):
             d['href']=tds[2].a.attrs['href']
             if tds[1].a:
                 d['id']=mymatch('up_([0-9]*)',tds[1].a.attrs['id'])
-            else:  # Jobs have empty tds[1]. Use href and hope it's invariant
-                d['id']=d['href']
+            else:  # Jobs have empty tds[1].
+                match= re.match('item\?id=([0-9]{7,10})',tds[2].a.attrs['href'])
+                if match:
+                    # Found a job with id pattern: href="item?id=7219911'
+                    d['id']=match.group(1)
+                    d['href']='https://news.ycombinator.com/{0}'.format(tds[2].a.attrs['href'])
+                else:
+                    # Found job with no id available. Use href + title for id and hope it is invariant
+                    d['id']='JOB: '+d['href'] + d['title']
             if tds[2].span:
                 d['domain']=str(mymatch(' *\(([^)]*)\) *', tds[2].span.text))
         except Exception as e:
@@ -278,6 +264,27 @@ class HNPage(object):
 
         return d
 
+    def processTimeStr(self, timeStr):
+        match=re.match('\s*([0-9]*) ([^ ]*) ago.*', timeStr)
+        if match:
+            if match.group(2)[:6]=='minute':
+                created=datetime.fromtimestamp(self.timestamp)-timedelta(minutes=int(match.group(1)))
+            elif match.group(2)[:4]=='hour':
+                created=datetime.fromtimestamp(self.timestamp)-timedelta(hours=int(match.group(1)))
+            elif match.group(2)[:3]=='day':
+                created=datetime.fromtimestamp(self.timestamp)-timedelta(days=int(match.group(1)))
+            else:
+                logger.warning('processPostPoints - unexpected create time: {0}'.format(match.group(0)))
+                created=None
+
+            if created:
+                created=created.strftime('%Y-%m-%d %H:%M:%S')
+            else:
+                created=match.group(0)
+        else:
+            logger.warning('processTimeStr - unexpected create time - failed to match: {0}'.format(timeStr))
+            created=timeStr
+        return created
 
     def processPostPoints(self, soup):
         d={}
@@ -286,31 +293,13 @@ class HNPage(object):
             if len(tds) != 2:
                 logger.error('processArticlePoints Aborting - Unexpected number of tds in article body: {0}. Expected 2. Body: \n{1}'.format(len(tds), soup.prettify()))
                 return d
-            if tds[1].span: # jobs have no points
+            if tds[1].span: # Non-jobs post
                 d['points']=asInt(mymatch('([0-9]*) points',tds[1].span.text))
                 d['author']=mymatch('user\?id=(.*)',tds[1].find_all('a')[0].attrs['href'])
                 d['comments']=asInt(mymatch('([0-9]*) comments', tds[1].find_all('a')[1].text, retType='zero_string')) # 'Discuss' has no comments
-                match=re.match('\s*([0-9]*) ([^ ]*) ago.*', tds[1].contents[3])
-                if match:
-                    if match.group(2)[:6]=='minute':
-                        created=datetime.fromtimestamp(self.timestamp)-timedelta(minutes=int(match.group(1)))
-                    elif match.group(2)[:4]=='hour':
-                        created=datetime.fromtimestamp(self.timestamp)-timedelta(hours=int(match.group(1)))
-                    elif match.group(2)[:3]=='day':
-                        created=datetime.fromtimestamp(self.timestamp)-timedelta(days=int(match.group(1)))
-                    else:
-                        logger.warning('processPostPoints - unexpected create time: {0}'.format(match.group(0)))
-                        created=None
-
-                    if created:
-                        created=created.strftime('%Y-%m-%d %H:%M:%S')
-                    else:
-                        created=match.group(0)
-
-                else:
-                    logger.warning('processArticlesPoints - unexpected create time failed to match: {0}'.format(tds[1].contents[3]))
-                    created=tds[1].contents[3]
-                d['created']=created
+                d['created']=self.processTimeStr(tds[1].contents[3])
+            else: # jobs have no points
+                d['created']=self.processTimeStr(tds[1].text)
         except Exception as e:
             logger.debug('processArticlePoints - Error:\n{0}\n{1}'.format(e, soup.prettify()))
 
@@ -323,25 +312,25 @@ class HNPage(object):
 def getPage(url):
     r={'ok':False}
 
-    for i in range(PAGE_RETRY):
+    for i in range(config.PAGE_RETRY):
         try:
             r = requests.get(url)
             if not r.ok:
                 logger.warning('getPage. requests returned not ok.  status_code: {0}. reason: {1}  Url: {2}'.format(r.status_code, r.reason,  url))
-                gevent.sleep(PAGE_RETRY_WAIT)
+                gevent.sleep(config.PAGE_RETRY_WAIT)
                 continue
             else:
                 break
         except Exception as e:
             logger.error('getPage: requests raised an error: {0}'.format(e))
-            gevent.sleep(PAGE_RETRY_WAIT)
+            gevent.sleep(config.PAGE_RETRY_WAIT)
             continue
 
     if r.ok:
         logger.progress('GOT:    {0}'.format(url))
         return r.content
     else:
-        raise Exception('getPage. Unable to get page {0}. Failed {1} times.'.format(url, PAGE_RETRY))
+        raise Exception('getPage. Unable to get page {0}. Failed {1} times.'.format(url, config.PAGE_RETRY))
 
 def getHNWorker(postHNQueue):
     workList=HNWorkList()
@@ -363,9 +352,9 @@ def getHNWorker(postHNQueue):
     return
 
 def postHNWorker(postHNQueue):
-    couch=couchdb.Server(COUCH_SERVER)
-    couch.resource.credentials=(COUCH_UN, COUCH_PW)
-    db=couch[COUCH_DB]
+    couch=couchdb.Server(config.COUCH_SERVER)
+    couch.resource.credentials=(config.COUCH_UN, config.COUCH_PW)
+    db=couch[config.COUCH_DB]
     db.info()  # Test connection before catching exceptions.
     logger.info('PostHNWorker: Connection with couchdb established.')
 
@@ -413,5 +402,31 @@ def main():
 
 
 if __name__=='__main__':
-    loggingSetup(LOGLEVEL, LOGFILE)
+    loggingSetup(config.LOGLEVEL, config.LOGFILE)
     main()
+
+    # For testing
+    # pageSource=open('pageSource','r').read()
+    # hnPage=HNPage(pageSource, 'news', 2)
+    # pageSource2=open('pageSource2','r').read()
+    # hnPage=HNPage(pageSource2, 'news', 2)
+
+
+
+# TODO: Daemon mode
+# TODO: _stats - print stats to logger every hour
+# TODO: Alerts - if # errors > some threshold, email me.
+# TODO: Global stats on a post: eg: Highest rank, time>30, time>60, first >30, first>60, etc.
+# TODO: Logs relative to script directory
+# Heartbeat & heartbeat monitor app
+''' TODO
+1. Replicate data
+2. Fix / figure out if id is right
+3. Point to new db
+4. Alerts via email
+5. _stats by hour to log
+
+Data cleanup (of existing records)
+    * Add doc_type: 'post' to all recs
+    * For jobs recs: fix id, href, and created
+'''
