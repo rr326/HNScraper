@@ -171,7 +171,11 @@ class HNPostSnap(object):
     def __repr__(self):
         return pformat(self.data)
 
-    def addOrUpdateCouch(self, db):
+    def addOrUpdateCouch(self, db, localDebug):
+        if localDebug:
+            # Mock - don't actually post
+            return
+
         view=db.view(config.COUCH_ID_VIEW, key=self.data['id'])
         if len(view)==0:
             # Create
@@ -309,7 +313,16 @@ class HNPage(object):
         return json.dumps([post.json() for post in self.postSnaps])
 
 
-def getPage(url):
+def getPage(url, localDebug):
+    if localDebug:
+        logger.warning('getPage(): MOCKED - using static file.')
+        with open(config.MOCK_PAGE, 'r') as f:
+            content = f.read()
+        _stats.addGot()
+        logger.warning('getPage(): mock - adding error to stats even with no error')
+        _stats.addError()
+        return content
+
     r={'ok':False}
 
     for i in range(config.PAGE_RETRY):
@@ -328,11 +341,13 @@ def getPage(url):
 
     if r.ok:
         logger.progress('GOT:    {0}'.format(url))
+        _stats.addGot()
         return r.content
     else:
+        _stats.addError()
         raise Exception('getPage. Unable to get page {0}. Failed {1} times.'.format(url, config.PAGE_RETRY))
 
-def getHNWorker(postHNQueue):
+def getHNWorker(postHNQueue, localDebug):
     workList=HNWorkList()
 
     more=''
@@ -340,7 +355,7 @@ def getHNWorker(postHNQueue):
         url, page, depth, wait_time = workList.getUrl(more)
         try:
             more=None
-            pageSource=getPage(url)
+            pageSource=getPage(url, localDebug)
             hnPage=HNPage(pageSource, page, depth)
             postHNQueue.put(hnPage)
             more=hnPage.more
@@ -351,7 +366,7 @@ def getHNWorker(postHNQueue):
 
     return
 
-def postHNWorker(postHNQueue):
+def postHNWorker(postHNQueue, localDebug):
     couch=couchdb.Server(config.COUCH_SERVER)
     couch.resource.credentials=(config.COUCH_UN, config.COUCH_PW)
     db=couch[config.COUCH_DB]
@@ -364,16 +379,58 @@ def postHNWorker(postHNQueue):
             i=0
             for postSnap in hnPage.postSnaps:
                 try:
-                    postSnap.addOrUpdateCouch(db)
+                    postSnap.addOrUpdateCouch(db, localDebug)
                     i+=1
                 except Exception as e:
                     logger.error('postHNWorker. Failure posting rec to couch. id: {0}'.format(postSnap.data['id'] if 'id' in postSnap.data else '<id not found>'))
                     logger.error('  >> e: {1}\n  data: \n{0}'.format(pformat(postSnap.data), e))
             logger.progress('POSTED: {0} records to couch'.format(i))
+            if localDebug:
+                logger.warn('postHNWorker: MOCKED - not actually posting')
+            _stats.addPosted(i)
         except Exception as e:
             logger.error('postHNWorker - postHNQueue.get errored: {0}'.format(e))
+            _stats.addError()
 
     return
+
+def statsWorker():
+    """Wake up every hour and log stats, and then reset them"""
+    logger.info('STATS: Starting. Will report out every {0:.1g} hours'.format(config.STATS_HOURS))
+    while True:
+        gevent.sleep(timedelta(hours=config.STATS_HOURS).total_seconds())
+        logger.info('STATS: {0}'.format(_stats))
+        _stats.resetStats()
+
+    return
+
+# Keep success / fail stats by the hour
+class StatLogger(object):
+    def __init__(self):
+        self.resetDate=datetime.now()
+        self.numGot=0
+        self.numPosted=0
+        self.numErrors=0
+
+    def __str__(self):
+        return 'pagesDownloaded: {0:>4} snapsPosted: {1:>4} numErros: {2:>4} over last {3:.1g} hours'.format(self.numGot, self.numPosted, self.numErrors, (datetime.now() - self.resetDate).seconds/3600 )
+
+    def addGot(self, num=1):
+        self.numGot += num
+
+    def addPosted(self, num):
+        self.numPosted +=num
+
+    def addError(self, num=1):
+        self.numErrors+=num
+
+    def resetStats(self):
+        self.resetDate=datetime.now()
+        self.numGot = 0
+        self.numPosted = 0
+        self.numErrors = 0
+
+
 
 
 def main():
@@ -382,9 +439,9 @@ def main():
     jobs=[]
 
     postHNQueue=gevent.queue.Queue()
-    jobs.append(gevent.spawn(postHNWorker, postHNQueue))
-    jobs.append(gevent.spawn(getHNWorker, postHNQueue))
-
+    jobs.append(gevent.spawn(getHNWorker, postHNQueue, config.LOCAL_DEBUG))
+    jobs.append(gevent.spawn(postHNWorker, postHNQueue, config.LOCAL_DEBUG))
+    jobs.append(gevent.spawn(statsWorker))
 
     gevent.joinall(jobs)
 
@@ -403,6 +460,7 @@ def main():
 
 if __name__=='__main__':
     loggingSetup(config.LOGLEVEL, config.LOGFILE)
+    _stats=StatLogger()  # global
     main()
 
     # For testing
@@ -417,7 +475,6 @@ if __name__=='__main__':
 # TODO: _stats - print stats to logger every hour
 # TODO: Alerts - if # errors > some threshold, email me.
 # TODO: Global stats on a post: eg: Highest rank, time>30, time>60, first >30, first>60, etc.
-# TODO: Logs relative to script directory
 # Heartbeat & heartbeat monitor app
 ''' TODO
 1. Replicate data
@@ -426,7 +483,9 @@ if __name__=='__main__':
 4. Alerts via email
 5. _stats by hour to log
 
+
 Data cleanup (of existing records)
     * Add doc_type: 'post' to all recs
     * For jobs recs: fix id, href, and created
+    * Delete mocked testing data
 '''
