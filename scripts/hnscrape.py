@@ -13,7 +13,7 @@ import config
 
 logger = config.logging.getLogger(__name__)
 
-import time, argparse, os, os.path, re, json, couchdb, requests
+import re, json, couchdb, requests
 from urlparse import urljoin
 from time import time as now
 from bs4 import BeautifulSoup
@@ -47,22 +47,29 @@ def asInt(text):
 #
 #
 
-def loggingSetup(log_level, logfile):
+def loggingSetup(log_level, logfile, errorsOnlyLog):
     logger.setLevel(log_level)
 
-    if config.logging.FileHandler not in [type(h) for h in logger.handlers] :
-        fh=config.logging.FileHandler(logfile)
-        fh.setLevel(log_level)
-        formatter_file=config.logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-        fh.setFormatter(formatter_file)
-        logger.addHandler(fh)
+    # File logging
+    h=config.logging.FileHandler(logfile)
+    h.setLevel(log_level)
+    formatter=config.logging.Formatter('%(asctime)s - %(name)s - %(module)s - %(levelname)s - %(lineno)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    h.setFormatter(formatter)
+    logger.addHandler(h)
 
-    if config.logging.StreamHandler not in [type(h) for h in logger.handlers]:
-        ch=config.logging.StreamHandler()
-        ch.setLevel(log_level)
-        formatter_screen=config.logging.Formatter('%(levelname)-8s %(message)s')
-        ch.setFormatter(formatter_screen)
-        logger.addHandler(ch)
+    # Stdout
+    h=config.logging.StreamHandler()
+    h.setLevel(log_level)
+    formatter=config.logging.Formatter('%(levelname)s - %(message)s')
+    h.setFormatter(formatter)
+    logger.addHandler(h)
+
+    # Errors only - don't display message since I only want 1 line per error
+    h=config.logging.FileHandler(errorsOnlyLog)
+    h.setLevel(config.logging.ERROR)
+    formatter=config.logging.Formatter('%(asctime)s - %(name)s - %(module)s - %(levelname)s - Line: %(lineno)s', datefmt='%Y-%m-%d %H:%M:%S')
+    h.setFormatter(formatter)
+    logger.addHandler(h)
 
     return
 
@@ -360,7 +367,7 @@ def getHNWorker(postHNQueue, localDebug):
             postHNQueue.put(hnPage)
             more=hnPage.more
         except Exception as e:
-            logger.warning('getHNWorker: Failed on page {0}. Skipping page.'.format(url))
+            logger.error('getHNWorker: Failed on page {0}. Skipping page.'.format(url))
         # Note - you need, at least, a sleep(0) since none of this is blocking, even though it is monkey patched
         gevent.sleep(wait_time)
 
@@ -430,9 +437,6 @@ class StatLogger(object):
         self.numPosted = 0
         self.numErrors = 0
 
-
-
-
 def main():
     logger.info('hnscrape: starting.')
 
@@ -445,21 +449,10 @@ def main():
 
     gevent.joinall(jobs)
 
-# Need to add the following to a helper function.
-# Permissions: (read/write) matenedidearandisturpetw
-# _design/by
-# {
-#   "_id": "_design/by",
-#   "_rev": "1-0b319125d8d1a3af8251801544d650c9",
-#   "value": {
-#     "rev": "1-0b319125d8d1a3af8251801544d650c9"
-#   },
-#   "key": "_design/by"
-# }
 
 
 if __name__=='__main__':
-    loggingSetup(config.LOGLEVEL, config.LOGFILE)
+    loggingSetup(config.LOGLEVEL, config.LOGFILE, config.ERRORS_ONLY_LOG)
     _stats=StatLogger()  # global
     main()
 
@@ -471,19 +464,11 @@ if __name__=='__main__':
 
 
 
+# TODO: Error & heartbeat monitor app
 # TODO: Daemon mode
-# TODO: _stats - print stats to logger every hour
-# TODO: Alerts - if # errors > some threshold, email me.
-# TODO: Global stats on a post: eg: Highest rank, time>30, time>60, first >30, first>60, etc.
-# Heartbeat & heartbeat monitor app
-''' TODO
-1. Replicate data
-2. Fix / figure out if id is right
-3. Point to new db
-4. Alerts via email
-5. _stats by hour to log
 
-
+'''
+TODO
 Data cleanup (of existing records)
     * Add doc_type: 'post' to all recs
     * For jobs recs: fix id, href, and created

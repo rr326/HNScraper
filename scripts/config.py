@@ -27,6 +27,8 @@ STATS_HOURS=1
 LOCAL_DEBUG=False
 MOCK_PAGE=os.path.join(SCRIPT_DIR,  'test/pageSource')
 
+# For alerting - 1 line per error.
+ERRORS_ONLY_LOG=os.path.join(SCRIPT_DIR, 'log', 'errors_only.log')
 
 
 # Overrides For debugging
@@ -36,3 +38,16 @@ MOCK_PAGE=os.path.join(SCRIPT_DIR,  'test/pageSource')
 # STATS_HOURS=1/(3600/20)
 # PAGES_TO_GET = todoList = [{'page': 'http://news.ycombinator.com', 'depth': 0, 'wait': SHORT_WAIT},  # depth 0 is page 1
 #                            {'page': 'http://news.ycombinator.com/news2', 'depth': 0, 'wait': LONG_WAIT}]
+
+
+'''
+CouchDB Views
+The database needs to be set up with the following views. (This is here to capture via source control.)
+_design/by/id
+function(doc) {
+    if (doc.id) {
+        emit(doc.id, doc);
+    }
+}
+
+'''
