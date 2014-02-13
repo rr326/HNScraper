@@ -96,19 +96,20 @@ class CouchData(object):
         return numPosts
 
 
-def checkPosts(couch):
+def checkPosts(couch, numHoursWaiting):
     numPosts=couch.getNumPostsAndUpdateSeq()
 
     totalWait = sum([todo['wait'] for todo in config.PAGES_TO_GET])
     pagesPerHour = 60*60/totalWait
-    expectedPosts = pagesPerHour * config.NUMPOSTSPERPAGE
+    expectedPostsPerHour = pagesPerHour * config.NUMPOSTSPERPAGE
+    numExpected = expectedPostsPerHour * numHoursWaiting * config.POSTERRORTHRESHOLD
 
-    tooFewPosts = numPosts < expectedPosts * config.POSTERRORTHRESHOLD
+    tooFewPosts = numPosts < expectedPostsPerHour * numHoursWaiting * config.POSTERRORTHRESHOLD
 
     #print 'checkPosts: numPost: {0}, totalWait: {1}, pagesPerHour: {2}, expectedPosts: {3}, threshold: {4:.1%} tooFewPosts: {5}'.format(numPosts, totalWait, pagesPerHour, expectedPosts, config.POSTERRORTHRESHOLD, tooFewPosts)
 
     if True: # For debugging tooFewPosts:
-        message='checkPosts: tooFewPosts: {3}. Expected ~ {0} (threshold: {1:.1%}). Posted: {2}'.format(expectedPosts, config.POSTERRORTHRESHOLD, numPosts, tooFewPosts)
+        message='checkPosts: tooFewPosts: {3}. Expected ~ {0} (threshold: {1:.1%}). Posted: {2}. TimePeriod: {4}'.format(numExpected, config.POSTERRORTHRESHOLD, numPosts, tooFewPosts, numHoursWaiting)
         logger.info(message)
 
     if tooFewPosts:
@@ -133,22 +134,23 @@ def sendMail(eFrom=None, eTo=None, eSubject=None, eText=None, dry_run=False):
 
 
     logger.info('Sending mail...')
-    print 'sending mail'
-    server=smtplib.SMTP(config.SMTP_SERVER, config.EMAIL_PORT, timeout=10, debug)
-    server.set_debuglevel(4)
-    server.starttls()
-    server.login(config.EMAIL_ADDR, config.EMAIL_PW)
-    server.sendmail(eFrom, eTo, msg.as_string())
-    server.quit()
-    print 'done sending mail'
-    logger.info('Sent mail successfully')
+    try:
+        server=smtplib.SMTP(config.SMTP_SERVER, config.EMAIL_PORT)
+        server.set_debuglevel(0)
+        server.starttls()
+        server.login(config.EMAIL_ADDR, config.EMAIL_PW)
+        server.sendmail(eFrom, eTo, msg.as_string())
+        server.quit()
+        logger.info('Sent mail successfully')
+    except Exception as e:
+        logger.error('sendMail: error sending mail to {0}. Error code: {1}'.format(eTo, e))
 
 def getDefaults():
     return {
         'From' : config.EMAIL_ADDR,
         'To': config.EMAIL_RECIPIENTS,
         'Subject':config.EMAIL_SUBJECT,
-        'dry_run':False
+        'dry_run':True
     }
 
 def emailAlert(message):
@@ -177,20 +179,28 @@ def alert(tooManyErrors, tooFewPosts):
 def main():
     loggingSetup(config.LOGFILE)
     logger.info('hnmonitor: starting')
+
     couch=CouchData()
 
     logger.info('First time - going to sleep until: {0}'.format(datetime.now()+timedelta(seconds=firstSleepTime())))
-    #sleep(firstSleepTime())
-    sleep(1)
+    sleepTime=firstSleepTime()
+    sleepTime=1
+    #sleep(sleepTime)
+    print '***** sleeping 1'
     while True:
         logger.info('Awake and running')
         tooManyErrors=checkErrors()
-        tooFewPosts=checkPosts(couch)
+        tooFewPosts=checkPosts(couch, sleepTime/60)
 
-        if tooManyErrors or tooFewPosts:
+        #if tooManyErrors or tooFewPosts:
+        if True:
+            print '***** Always alerting ****'
             alert(tooManyErrors, tooFewPosts)
 
+        print '***** Exiting'
         exit()
+        sleepTime=config.RUNFREQUENCY
+        sleep(sleepTime)
     logger.info('hnmonitor: terminating')
     return
 
@@ -200,7 +210,7 @@ def testEmail():
     print 'Sent mail successfully'
 
 if __name__ == '__main__':
-    #main()
-    testEmail()
+    main()
+
 
 
