@@ -11,7 +11,7 @@ def testEmail():
     print 'Sent mail successfully'
 
 
-def loggingSetup():
+def loggingSetupLocal():
     log_level = config.logging.DEBUG # Hardcode, but run minimally
 
     logger.setLevel(log_level)
@@ -27,5 +27,5 @@ def loggingSetup():
     return
 
 if __name__=='__main__':
-    loggingSetup()
+    loggingSetupLocal()
     testEmail()

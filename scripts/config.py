@@ -1,7 +1,9 @@
 from __future__ import division
 import logging
 logging.PROGRESS = 15
+# noinspection PyUnresolvedReferences
 logging.addLevelName(logging.PROGRESS, 'PROGRESS')
+# noinspection PyUnresolvedReferences
 def log_progress(self, msg, *args, **kws):
     if self.isEnabledFor(logging.PROGRESS):
         self._log(logging.PROGRESS, msg, args, **kws)

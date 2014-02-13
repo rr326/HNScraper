@@ -11,13 +11,11 @@ from __future__ import division
 from time import sleep
 from datetime import datetime, timedelta
 import couchdb
-import smtplib, json, argparse
+import smtplib, argparse
 from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.mime.application import MIMEApplication
 
 import config
-logger = config.logging.getLogger(__name__)
+logger = config.logging.getLogger('hnmonitor')
 
 def loggingSetup(logfile):
     log_level = config.logging.INFO # Hardcode, but run minimally
@@ -27,7 +25,7 @@ def loggingSetup(logfile):
     # File logging
     h=config.logging.FileHandler(logfile)
     h.setLevel(log_level)
-    formatter=config.logging.Formatter('%(asctime)s - %(name)s - %(module)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    formatter=config.logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     h.setFormatter(formatter)
     logger.addHandler(h)
 
@@ -64,19 +62,21 @@ def checkErrors():
 
     tooManyErrors = len(lines) > config.MAXERRORS
 
-    if True: # (for debugging) tooManyErrors:
-        message='checkErrors: tooManyErrors: {0}, MaxErrors = {1}. Actual Errors = {2}'.format(tooManyErrors, config.MAXERRORS, len(lines))
-        logger.info(message)
+    print '*********** SETTING TooManyErros to True'
+    tooManyErrors = True
 
     if tooManyErrors:
+        message='checkErrors: tooManyErrors: {0}, MaxErrors = {1}. Actual Errors = {2}'.format(tooManyErrors, config.MAXERRORS, len(lines))
+        logger.info(message)
         retval = {'tooManyErrors' : True, 'message': message}
     else:
         retval = None
 
-    return None
+    return retval
 
 class CouchData(object):
     def __init__(self):
+        self.last_seq=None
         couch = couchdb.Server(config.COUCH_SERVER)
         couch.resource.credentials = (config.COUCH_UN, config.COUCH_PW)
         self.db = couch[config.COUCH_DB]
@@ -106,14 +106,15 @@ def checkPosts(couch, numHoursWaiting):
 
     tooFewPosts = numPosts < expectedPostsPerHour * numHoursWaiting * config.POSTERRORTHRESHOLD
 
-    #print 'checkPosts: numPost: {0}, totalWait: {1}, pagesPerHour: {2}, expectedPosts: {3}, threshold: {4:.1%} tooFewPosts: {5}'.format(numPosts, totalWait, pagesPerHour, expectedPosts, config.POSTERRORTHRESHOLD, tooFewPosts)
-
-    if True: # For debugging tooFewPosts:
-        message='checkPosts: tooFewPosts: {3}. Expected ~ {0} (threshold: {1:.1%}). Posted: {2}. TimePeriod: {4}hrs'.format(numExpected, config.POSTERRORTHRESHOLD, numPosts, tooFewPosts, numHoursWaiting)
-        logger.info(message)
+    print '************* SETTING TooFewPosts to True'
+    tooFewPosts = True
 
     if tooFewPosts:
+        message='checkPosts: tooFewPosts: {3}. Expected ~ {0} (threshold: {1:.1%}). Posted: {2}. TimePeriod: {4}hrs'.format(numExpected, config.POSTERRORTHRESHOLD, numPosts, tooFewPosts, numHoursWaiting)
+        logger.info(message)
         retval= {'tooFewPosts' : True, 'message' : message}
+    else:
+        retval = None
 
     return retval
 
@@ -129,9 +130,6 @@ def sendMail(eFrom=None, eTo=None, eSubject=None, eText=None, dry_run=False, deb
     msg['Subject']= eSubject
     msg['From']=eFrom
     msg['To']=', '.join(eTo)
-
-    textPart=MIMEText(config.EMAIL_TEXT)
-
 
     logger.info('Sending mail...')
     try:
@@ -207,7 +205,6 @@ def main():
 
 
 if __name__ == '__main__':
-    #testEmail()
     main()
 
 

@@ -3,7 +3,7 @@ from __future__ import division
 import gevent
 from gevent import monkey
 from gevent import queue
-import threading  # Must be after monkey.patch
+#import threading  # Must be after monkey.patch
 if __name__=='__main__':
     # Do not monkey patch when a library - it messes up ipython (which I use for testing)
     monkey.patch_all()
@@ -11,7 +11,7 @@ if __name__=='__main__':
 import config
 
 
-logger = config.logging.getLogger(__name__)
+logger = config.logging.getLogger('hnscrape')
 
 import re, json, couchdb, requests
 from urlparse import urljoin
@@ -36,7 +36,7 @@ def mymatch(regex, text, groupNum=1, retType=None):
 def asInt(text):
     try:
         return int(text)
-    except:
+    except ValueError:
         return text
 
 
@@ -53,7 +53,7 @@ def loggingSetup(log_level, logfile, errorsOnlyLog):
     # File logging
     h=config.logging.FileHandler(logfile)
     h.setLevel(log_level)
-    formatter=config.logging.Formatter('%(asctime)s - %(name)s - %(module)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    formatter=config.logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     h.setFormatter(formatter)
     logger.addHandler(h)
 
@@ -67,7 +67,7 @@ def loggingSetup(log_level, logfile, errorsOnlyLog):
     # Errors only - don't display message since I only want 1 line per error
     h=config.logging.FileHandler(errorsOnlyLog)
     h.setLevel(config.logging.ERROR)
-    formatter=config.logging.Formatter('%(asctime)s - %(name)s - %(module)s - %(levelname)s - Line: %(lineno)s', datefmt='%Y-%m-%d %H:%M:%S')
+    formatter=config.logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - Line: %(lineno)s', datefmt='%Y-%m-%d %H:%M:%S')
     h.setFormatter(formatter)
     logger.addHandler(h)
 
@@ -112,6 +112,7 @@ class HNWorkList(object):
 #    history: [List of HNPostData that changes - eg: points, comments, ranking]
 
 class HNPost(object):
+    # noinspection PyDictCreation
     def __init__(self, postSnap=None, existingPostData=None):
         self.data={}
         self.data['doc_type']='post'
@@ -247,7 +248,8 @@ class HNPage(object):
             self.more=trs[91].find('a').attrs['href']
         return
 
-    def processPostTitle(self, soup):
+    @staticmethod
+    def processPostTitle(soup):
         d={}
         try:
             tds=soup.contents
@@ -360,13 +362,14 @@ def getHNWorker(postHNQueue, localDebug):
     more=''
     while True:
         url, page, depth, wait_time = workList.getUrl(more)
+        # noinspection PyBroadException
         try:
             more=None
             pageSource=getPage(url, localDebug)
             hnPage=HNPage(pageSource, page, depth)
             postHNQueue.put(hnPage)
             more=hnPage.more
-        except Exception as e:
+        except Exception:
             logger.error('getHNWorker: Failed on page {0}. Skipping page.'.format(url))
         # Note - you need, at least, a sleep(0) since none of this is blocking, even though it is monkey patched
         gevent.sleep(wait_time)
@@ -465,10 +468,11 @@ if __name__=='__main__':
 
 
 
-# TODO: Error & heartbeat monitor app
+# TODO: Remove print statements & minimize logging.
 # TODO: Daemon mode
 # TODO: Data replication, tranfer, and historical cleanup (see below)
 
+# noinspection PyStatementEffect
 '''
 TODO
 Data cleanup (of existing records)
