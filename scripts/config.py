@@ -31,24 +31,24 @@ MOCK_PAGE=os.path.join(SCRIPT_DIR,  'test/pageSource')
 ERRORS_ONLY_LOG=os.path.join(SCRIPT_DIR, 'log', 'errors_only.log')
 
 # hnmonitor config
-RUNFREQUENCY = 6  # hours
+RUNFREQUENCY = 1 # 6  # hours
 MAXERRORS = 4
 NUMPOSTSPERPAGE=30  # Invariant, but put here so I don't hardcode
+
+print '*************** Setting threshold to 1.5 for testing.'
 POSTERRORTHRESHOLD=.8  # Anything less than 80% will cause an alert
+POSTERRORTHRESHOLD=1.5  # Anything less than 80% will cause an alert
 
 # Email
-EMAIL_ADDR='rrosen326@gmail.com'
-EMAIL_PW='xxx'
+EMAIL_ADDR='noreply@zephyrzone.org'
+EMAIL_PW='84bc29x'
 
-with open('/Users/rrosen/dev/googlepw.txt', 'r') as f:
-    EMAIL_PW=f.read()
-
-EMAIL_PORT=587
-SMTP_SERVER='smtp.gmail.com'
+EMAIL_PORT=80
+SMTP_SERVER='smtpout.secureserver.net'
 EMAIL_FROM=EMAIL_ADDR
 EMAIL_RECIPIENTS=['rrosen326@gmail.com', 'ross_rosen@yahoo.com']
 EMAIL_SUBJECT='hnscrape monitor results'
-EMAIL_TEXT='hnscrape monitor:\nSeeing impropoper results. Check log file (hnscrape.log) for details.\n'
+EMAIL_TEXT='hnscrape monitor:\n======================\nhnscraper does not appear to be working properly.\nCheck log file (hnscrape.log) for details.\n\n'
 
 
 
