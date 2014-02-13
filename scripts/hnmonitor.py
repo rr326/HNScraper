@@ -11,6 +11,10 @@ from __future__ import division
 from time import sleep
 from datetime import datetime, timedelta
 import couchdb
+import smtplib, json, argparse
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
 
 import config
 logger = config.logging.getLogger(__name__)
@@ -54,16 +58,22 @@ def checkErrors():
     with open(config.ERRORS_ONLY_LOG, 'r') as f:
         lines=f.readlines()
 
-    tooManyErrors = len(lines) > config.MAXERRORS
-
     # Now reset the log file to empty
     with open(config.ERRORS_ONLY_LOG, 'w') as f:
         f.write('')
 
-    if tooManyErrors:
-        logger.info('CheckError returned too many errros. MaxErrors = {0}. Actual Errors = {1}'.format(config.MAXERRORS, len(lines)))
+    tooManyErrors = len(lines) > config.MAXERRORS
 
-    return tooManyErrors
+    if True: # (for debugging) tooManyErrors:
+        message='checkErrors: tooManyErrors: {0}, MaxErrors = {1}. Actual Errors = {2}'.format(tooManyErrors, config.MAXERRORS, len(lines))
+        logger.info(message)
+
+    if tooManyErrors:
+        retval = {'tooManyErrors' : True, 'message': message}
+    else:
+        retval = None
+
+    return None
 
 class CouchData(object):
     def __init__(self):
@@ -97,12 +107,71 @@ def checkPosts(couch):
 
     #print 'checkPosts: numPost: {0}, totalWait: {1}, pagesPerHour: {2}, expectedPosts: {3}, threshold: {4:.1%} tooFewPosts: {5}'.format(numPosts, totalWait, pagesPerHour, expectedPosts, config.POSTERRORTHRESHOLD, tooFewPosts)
 
-    if tooFewPosts:
-        logger.info('checkPosts returned too few posts. Expected ~ {0} (threshold: {1:.1%}). Posted: {2}'.format(expectedPosts, config.POSTERRORTHRESHOLD, numPosts))
+    if True: # For debugging tooFewPosts:
+        message='checkPosts: tooFewPosts: {3}. Expected ~ {0} (threshold: {1:.1%}). Posted: {2}'.format(expectedPosts, config.POSTERRORTHRESHOLD, numPosts, tooFewPosts)
+        logger.info(message)
 
-    return tooFewPosts
+    if tooFewPosts:
+        retval= {'tooFewPosts' : True, 'message' : message}
+
+    return retval
+
+def sendMail(eFrom=None, eTo=None, eSubject=None, eText=None, dry_run=False):
+    if not eFrom or not eTo or not eSubject or not eText or  type(eTo)=='list':
+        raise Exception('Error - invalid arguments. eFrom={0}, eTo={1}, eSubject={2}, eText={3}'.format(eFrom, eTo, eSubject, eText[:20]+'...' if type(eText==str) else type(eText)))
+
+    if dry_run:
+        logger.info('sendMail: Skipping (called with dry_run)')
+        return
+
+    msg=MIMEText(eText)
+    msg['Subject']= eSubject
+    msg['From']=eFrom
+    msg['To']=', '.join(eTo)
+
+    textPart=MIMEText(config.EMAIL_TEXT)
+
+
+    logger.info('Sending mail...')
+    print 'sending mail'
+    server=smtplib.SMTP(config.SMTP_SERVER, config.EMAIL_PORT, timeout=10, debug)
+    server.set_debuglevel(4)
+    server.starttls()
+    server.login(config.EMAIL_ADDR, config.EMAIL_PW)
+    server.sendmail(eFrom, eTo, msg.as_string())
+    server.quit()
+    print 'done sending mail'
+    logger.info('Sent mail successfully')
+
+def getDefaults():
+    return {
+        'From' : config.EMAIL_ADDR,
+        'To': config.EMAIL_RECIPIENTS,
+        'Subject':config.EMAIL_SUBJECT,
+        'dry_run':False
+    }
+
+def emailAlert(message):
+    defaults = getDefaults()
+
+    sendMail(
+        eFrom=defaults['From'],
+        eTo=defaults['To'],
+        eSubject=defaults['Subject'],
+        eText=message,
+        dry_run=defaults['dry_run'],
+        )
+
+    return
 
 def alert(tooManyErrors, tooFewPosts):
+    message = config.EMAIL_TEXT+'\n'
+    if tooManyErrors:
+        message+=tooManyErrors['message']+'\n'
+    if tooFewPosts:
+        message+=tooFewPosts['message']+'\n'
+
+    emailAlert(message)
     return
 
 def main():
@@ -125,7 +194,13 @@ def main():
     logger.info('hnmonitor: terminating')
     return
 
+def testEmail():
+    print 'About to send mail'
+    emailAlert('This is the body of the email.\nLine 2\n')
+    print 'Sent mail successfully'
+
 if __name__ == '__main__':
-    main()
+    #main()
+    testEmail()
 
 

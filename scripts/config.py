@@ -36,6 +36,22 @@ MAXERRORS = 4
 NUMPOSTSPERPAGE=30  # Invariant, but put here so I don't hardcode
 POSTERRORTHRESHOLD=.8  # Anything less than 80% will cause an alert
 
+# Email
+EMAIL_ADDR='rrosen326@gmail.com'
+EMAIL_PW='xxx'
+
+with open('/Users/rrosen/dev/googlepw.txt', 'r') as f:
+    EMAIL_PW=f.read()
+
+EMAIL_PORT=587
+SMTP_SERVER='smtp.gmail.com'
+EMAIL_FROM=EMAIL_ADDR
+EMAIL_RECIPIENTS=['rrosen326@gmail.com', 'ross_rosen@yahoo.com']
+EMAIL_SUBJECT='hnscrape monitor results'
+EMAIL_TEXT='hnscrape monitor:\nSeeing impropoper results. Check log file (hnscrape.log) for details.\n'
+
+
+
 
 # Overrides For debugging
 # LOCAL_DEBUG=True
