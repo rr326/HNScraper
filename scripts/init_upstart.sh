@@ -4,5 +4,5 @@
 # Run as sudo
 cp *.conf /etc/init
 initctl reload-configuration
-start hnmonitor
-start hnscrape
+restart hnmonitor
+restart hnscrape

@@ -50,7 +50,7 @@ SMTP_SERVER='smtpout.secureserver.net'
 EMAIL_FROM=EMAIL_ADDR
 EMAIL_RECIPIENTS=['rrosen326@gmail.com', 'ross_rosen@yahoo.com']
 EMAIL_SUBJECT='hnscrape monitor results'
-EMAIL_TEXT='hnscrape monitor:\n======================\nhnscraper does not appear to be working properly.\nCheck log file (hnscrape.log) for details.\n\n'
+EMAIL_TEXT='hnscraper does not appear to be working properly.\nCheck log file (hnscrape.log) for details.\n\n'
 
 
 

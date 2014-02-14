@@ -1,4 +1,6 @@
 from hnmonitor import *
+from hnscrape import datetimeToStr
+
 hnlogger=logger
 
 import logging
@@ -26,6 +28,17 @@ def loggingSetupLocal():
 
     return
 
+def testNumPosted():
+    couchData=CouchData()
+    numPosted=couchData.getNumPostedTest()
+    print 'testNumPosted - numPosted: {0}'.format(numPosted)
+
+    for i in range(5):
+        numPosted = couchData.getNumPostedTest(lastTimestamp=datetimeToStr(datetime.now()-timedelta(hours=i)))
+        print 'Numposted in last {0} hours: {1}: timestamp: {2}'.format(i, numPosted, datetimeToStr(datetime.now()-timedelta(hours=i)))
+
+
 if __name__=='__main__':
     loggingSetupLocal()
-    testEmail()
+    # testEmail()
+    testNumPosted()

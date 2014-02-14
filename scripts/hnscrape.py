@@ -72,6 +72,8 @@ def asInt(text):
     except ValueError:
         return text
 
+def datetimeToStr(dt):
+    return dt.strftime('%Y-%m-%d %H:%M:%S')
 
 
 #
@@ -235,7 +237,7 @@ class HNPostSnap(object):
 class HNPage(object):
     def __init__(self, html, pageName, pageDepth):
         self.timestamp=now()
-        self.timestamp_str=datetime.fromtimestamp(self.timestamp).strftime('%Y-%m-%d %H:%M:%S')
+        self.timestamp_str=datetimeToStr(datetime.fromtimestamp(self.timestamp))
         self.pageName=pageName
         self.pageDepth=pageDepth
         self.html=html
@@ -325,7 +327,7 @@ class HNPage(object):
                 created=None
 
             if created:
-                created=created.strftime('%Y-%m-%d %H:%M:%S')
+                created=datetimeToStr(created)
             else:
                 created=match.group(0)
         else:

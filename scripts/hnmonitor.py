@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 import couchdb
 import smtplib, argparse, daemon
 from email.mime.text import MIMEText
+from hnscrape import datetimeToStr
 
 import config
 logger = config.logging.getLogger('hnmonitor')
@@ -82,18 +83,37 @@ class CouchData(object):
         self.db = couch[config.COUCH_DB]
         self.db.info()  # Will raise an error if it doesn't work
         logger.info('Connection to couch established')
+        self.lastTimestamp=datetimeToStr(datetime.now()-timedelta(seconds=-2))
         self.setLastSeq()
 
     def setLastSeq(self):
+        self.lastTimestamp = datetimeToStr(datetime.now() - timedelta(seconds=-2))
         results=self.db.changes(descending=True,limit=1)
         self.last_seq = results['last_seq']
 
 
     def getNumPostsAndUpdateSeq(self):
-        results=self.db.changes(since=self.last_seq)
-        numPosts=len(results.get('results'))
+        results=self.db.changes(since=self.last_seq, include_docs=True)
+        numPosts=self.countUpdatesSince(retval.get('results'), self.lastTimestamp)
         self.last_seq = results['last_seq']
         return numPosts
+
+    @staticmethod
+    def countUpdatesSince(results, sinceDateStr):
+        numUpdates = 0
+        for result in results:
+            doc = result.get('doc').get('history')
+            if doc:
+                for snap in doc:
+                    if snap.get('timestamp_str') > sinceDateStr:
+                        numUpdates += 1
+        return numUpdates
+
+    def getNumPostedTest(self, lastTimestamp=''):
+        seq="202583-g1AAAAG3eJzLYWBgYMlgTmFQSElKzi9KdUhJMtfLTS3KLElMT9VLzskvTUnMK9HLSy3JAapkSmRIsv___39WBnMSA8Mm51ygGHtyUpqFYbIFEUag2mOCx54kByCZVA-36oQ92CpTY8NUQzNLIkwh3kt5LECSoQFIAW3bD7Hu9nSwdYYpaWYmhqkk-8yYoHUHINZBfXfQDmxdinmSial5EhEmZQEAMz6PmA"
+        #retval = self.db.changes(descending=False, limit=4, since=seq, include_docs=True)
+        retval = self.db.changes(descending=True, limit=100,  include_docs=True)
+        return self.countUpdatesSince(retval.get('results'), lastTimestamp)
 
 
 def checkPosts(couch, numHoursWaiting):
