@@ -6,3 +6,5 @@ cp *.conf /etc/init
 initctl reload-configuration
 restart hnmonitor
 restart hnscrape
+status hnmonitor
+status hnscrape

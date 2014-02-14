@@ -456,8 +456,7 @@ def statsWorker():
 # noinspection PyShadowingNames
 def main(args):
     loggingSetup(config.LOGLEVEL, config.LOGFILE, config.ERRORS_ONLY_LOG, noScreen=args.daemon or args.nostdout )
-
-    logger.info('hnscrape: starting.')
+    logger.info('hnscrape: starting. Daemon-mode = {0}'.format(args.daemon))
 
     jobs=[]
 
@@ -487,11 +486,9 @@ def parseArgs():
     return args
 
 if __name__ == '__main__':
-    print '******hnscrape in main'
     args = parseArgs()
     if args.daemon:
         with daemon.DaemonContext():
-            print '************ hnscrape in daemon'
             main(args)
     else:
         main(args)

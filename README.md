@@ -30,11 +30,11 @@ Tools for scraping Hacker News and uploading to Cloudant.
 
 ## Todo
 
-* Move date from rrosen326 db to cloudant-sponsored db
 * Move scripts from Ross' digitalocean server to cloudant server
 * Fix some data problems
   * Old data - there were a few bugs that I fixed and should clean the old data
   * Test data - there is a bunch of test data from teh last few days I need to remove
+* Get cloudant email address and pw for hnmonitor
 * Then, use the data!
 
 ## Notes - hnscrape

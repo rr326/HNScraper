@@ -63,13 +63,10 @@ def checkErrors():
 
     tooManyErrors = len(lines) > config.MAXERRORS
 
-    print '*********** SETTING TooManyErros to True'
-    tooManyErrors = True
-
-    if tooManyErrors:
+    if tooManyErrors or config.HNMONITOR_FORCE_SEND:
         message='checkErrors: tooManyErrors: {0}, MaxErrors = {1}. Actual Errors = {2}'.format(tooManyErrors, config.MAXERRORS, len(lines))
         logger.info(message)
-        retval = {'tooManyErrors' : True, 'message': message}
+        retval = {'tooManyErrors' : tooManyErrors, 'message': message}
     else:
         retval = None
 
@@ -93,9 +90,13 @@ class CouchData(object):
 
 
     def getNumPostsAndUpdateSeq(self):
-        results=self.db.changes(since=self.last_seq, include_docs=True)
-        numPosts=self.countUpdatesSince(retval.get('results'), self.lastTimestamp)
-        self.last_seq = results['last_seq']
+        try:
+            retval=self.db.changes(since=self.last_seq, include_docs=True)
+            numPosts=self.countUpdatesSince(retval.get('results'), self.lastTimestamp)
+            self.last_seq = retval['last_seq']
+        except Exception as e:
+            logger.error('getNumPostsAndUpdateSeq - failed. {0}'.format(e), exc_info=True)
+            numPosts=-1
         return numPosts
 
     @staticmethod
@@ -127,13 +128,10 @@ def checkPosts(couch, numHoursWaiting):
 
     tooFewPosts = numPosts < expectedPostsPerHour * numHoursWaiting * config.POSTERRORTHRESHOLD
 
-    print '************* SETTING TooFewPosts to True'
-    tooFewPosts = True
-
-    if tooFewPosts:
-        message='checkPosts: tooFewPosts: {3}. Expected ~ {0} (threshold: {1:.1%}). Posted: {2}. TimePeriod: {4}hrs'.format(numExpected, config.POSTERRORTHRESHOLD, numPosts, tooFewPosts, numHoursWaiting)
+    if tooFewPosts or config.HNMONITOR_FORCE_SEND:
+        message='checkPosts: tooFewPosts: {3}. Expected ~ {0} (threshold: {1:.1%}). Posted: {2}. TimePeriod: {4:.1g}hrs'.format(numExpected, config.POSTERRORTHRESHOLD, numPosts, tooFewPosts, numHoursWaiting)
         logger.info(message)
-        retval= {'tooFewPosts' : True, 'message' : message}
+        retval= {'tooFewPosts' : tooFewPosts, 'message' : message}
     else:
         retval = None
 
@@ -152,7 +150,6 @@ def sendMail(eFrom=None, eTo=None, eSubject=None, eText=None, dry_run=False, deb
     msg['From']=eFrom
     msg['To']=', '.join(eTo)
 
-    logger.info('Sending mail...')
     try:
         server=smtplib.SMTP(config.SMTP_SERVER, config.EMAIL_PORT)
         server.set_debuglevel(debugLevel)
@@ -188,6 +185,8 @@ def emailAlert(message, debugLevel=0):
 
 def alert(tooManyErrors, tooFewPosts):
     message = config.EMAIL_TEXT+'\n'
+    if config.HNMONITOR_FORCE_SEND:
+        message+='** config.HNMONITOR_FORCE_SEND == True **\n'
     if tooManyErrors:
         message+='  >>' + tooManyErrors['message']+'\n'
     if tooFewPosts:
@@ -197,42 +196,36 @@ def alert(tooManyErrors, tooFewPosts):
     return
 
 
-
+# noinspection PyShadowingNames
 def main(args):
     loggingSetup(config.LOGFILE, noScreen=args.daemon or args.nostdout)
-    logger.info('hnmonitor: starting')
-    logger.info('DAEMON mode: |{0}|'.format(args.daemon))
+    logger.info('hnmonitor: starting. Daemon-mode = {0}'.format(args.daemon))
 
     couch=CouchData()
 
     logger.info('First time - going to sleep until: {0}'.format(datetime.now()+timedelta(seconds=firstSleepTime())))
     sleepTime=firstSleepTime()
-    #sleepTime=1
     sleep(sleepTime)
-    #print '***** sleeping 1'
     while True:
         logger.info('Awake and running')
         tooManyErrors=checkErrors()
         tooFewPosts=checkPosts(couch, sleepTime/60/60)
 
-        #if tooManyErrors or tooFewPosts:
-        if True:
-            print '***** Always alerting ****'
+        if tooManyErrors or tooFewPosts or config.HNMONITOR_FORCE_SEND:
             alert(tooManyErrors, tooFewPosts)
 
-        # print '***** Exiting'
-        # exit()
+
         sleepTime=config.RUNFREQUENCY*60*60
         sleep(sleepTime)
     logger.info('hnmonitor: terminating')
     return
 
+
+# noinspection PyShadowingNames
 def parseArgs():
     description = '''
     Monitor hnscrape process and send email alert if not hnscrape is not functioning properly (either too many errors, or too few posts to database). Configuration in config.py
     '''
-
-    defaults=getDefaults()
 
     parser=argparse.ArgumentParser(add_help=True, description=description)
     parser.add_argument('-d', '--daemon', action='store_true', help='Run as daemon')
