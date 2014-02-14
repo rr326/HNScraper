@@ -11,13 +11,13 @@ from __future__ import division
 from time import sleep
 from datetime import datetime, timedelta
 import couchdb
-import smtplib, argparse
+import smtplib, argparse, daemon
 from email.mime.text import MIMEText
 
 import config
 logger = config.logging.getLogger('hnmonitor')
 
-def loggingSetup(logfile):
+def loggingSetup(logfile, noScreen=False):
     log_level = config.logging.INFO # Hardcode, but run minimally
 
     logger.setLevel(log_level)
@@ -100,8 +100,9 @@ def checkPosts(couch, numHoursWaiting):
     numPosts=couch.getNumPostsAndUpdateSeq()
 
     totalWait = sum([todo['wait'] for todo in config.PAGES_TO_GET])
-    pagesPerHour = 60*60/totalWait
-    expectedPostsPerHour = pagesPerHour * config.NUMPOSTSPERPAGE
+    runsPerHour = 60*60/totalWait
+    pagesPerRun = len(config.PAGES_TO_GET)
+    expectedPostsPerHour = runsPerHour * pagesPerRun  * config.NUMPOSTSPERPAGE
     numExpected = expectedPostsPerHour * numHoursWaiting * config.POSTERRORTHRESHOLD
 
     tooFewPosts = numPosts < expectedPostsPerHour * numHoursWaiting * config.POSTERRORTHRESHOLD
@@ -175,9 +176,12 @@ def alert(tooManyErrors, tooFewPosts):
     emailAlert(message)
     return
 
-def main():
-    loggingSetup(config.LOGFILE)
+
+
+def main(args):
+    loggingSetup(config.LOGFILE, noScreen=args.daemon or args.nostdout)
     logger.info('hnmonitor: starting')
+    logger.info('DAEMON mode: |{0}|'.format(args.daemon))
 
     couch=CouchData()
 
@@ -203,9 +207,29 @@ def main():
     logger.info('hnmonitor: terminating')
     return
 
+def parseArgs():
+    description = '''
+    Monitor hnscrape process and send email alert if not hnscrape is not functioning properly (either too many errors, or too few posts to database). Configuration in config.py
+    '''
+
+    defaults=getDefaults()
+
+    parser=argparse.ArgumentParser(add_help=True, description=description)
+    parser.add_argument('-d', '--daemon', action='store_true', help='Run as daemon')
+    parser.add_argument('--nostdout', action='store_true', help='Run without printing to stdout')
+
+    args=parser.parse_args()
+
+    return args
 
 if __name__ == '__main__':
-    main()
+    args=parseArgs()
+    if args.daemon:
+        with daemon.DaemonContext():
+            print 'Running as daemon'
+            main(args)
+    else:
+        main(args)
 
 
 

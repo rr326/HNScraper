@@ -10,16 +10,49 @@ if __name__=='__main__':
 
 import config
 
-
-logger = config.logging.getLogger('hnscrape')
-
-import re, json, couchdb, requests
+import re, json, couchdb, requests, daemon, argparse
 from urlparse import urljoin
 from time import time as now
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 from pprint import  pformat
 
+# Global
+logger = config.logging.getLogger('hnscrape')
+
+
+# Keep success / fail stats by the hour
+class StatLogger(object):
+    def __init__(self):
+        self.resetDate=datetime.now()
+        self.numGot=0
+        self.numPosted=0
+        self.numErrors=0
+
+    def __str__(self):
+        return 'pagesDownloaded: {0:>4} snapsPosted: {1:>4} numErros: {2:>4} over last {3:.1g} hours'.format(self.numGot, self.numPosted, self.numErrors, (datetime.now() - self.resetDate).seconds/3600 )
+
+    def addGot(self, num=1):
+        self.numGot += num
+
+    def addPosted(self, num):
+        self.numPosted +=num
+
+    def addError(self, num=1):
+        self.numErrors+=num
+
+    def resetStats(self):
+        self.resetDate=datetime.now()
+        self.numGot = 0
+        self.numPosted = 0
+        self.numErrors = 0
+
+#
+# Global
+#
+_stats=StatLogger()
+
+# ------------------------------------------------------------------------
 
 def mymatch(regex, text, groupNum=1, retType=None):
     match=re.match(regex, text)
@@ -47,7 +80,7 @@ def asInt(text):
 #
 #
 
-def loggingSetup(log_level, logfile, errorsOnlyLog):
+def loggingSetup(log_level, logfile, errorsOnlyLog, noScreen=False):
     logger.setLevel(log_level)
 
     # File logging
@@ -57,12 +90,13 @@ def loggingSetup(log_level, logfile, errorsOnlyLog):
     h.setFormatter(formatter)
     logger.addHandler(h)
 
-    # Stdout
-    h=config.logging.StreamHandler()
-    h.setLevel(log_level)
-    formatter=config.logging.Formatter('%(levelname)s - %(message)s')
-    h.setFormatter(formatter)
-    logger.addHandler(h)
+    if not noScreen:
+        # Stdout
+        h=config.logging.StreamHandler()
+        h.setLevel(log_level)
+        formatter=config.logging.Formatter('%(levelname)s - %(message)s')
+        h.setFormatter(formatter)
+        logger.addHandler(h)
 
     # Errors only - don't display message since I only want 1 line per error
     h=config.logging.FileHandler(errorsOnlyLog)
@@ -414,33 +448,13 @@ def statsWorker():
 
     return
 
-# Keep success / fail stats by the hour
-class StatLogger(object):
-    def __init__(self):
-        self.resetDate=datetime.now()
-        self.numGot=0
-        self.numPosted=0
-        self.numErrors=0
 
-    def __str__(self):
-        return 'pagesDownloaded: {0:>4} snapsPosted: {1:>4} numErros: {2:>4} over last {3:.1g} hours'.format(self.numGot, self.numPosted, self.numErrors, (datetime.now() - self.resetDate).seconds/3600 )
 
-    def addGot(self, num=1):
-        self.numGot += num
 
-    def addPosted(self, num):
-        self.numPosted +=num
+# noinspection PyShadowingNames
+def main(args):
+    loggingSetup(config.LOGLEVEL, config.LOGFILE, config.ERRORS_ONLY_LOG, noScreen=args.daemon or args.nostdout )
 
-    def addError(self, num=1):
-        self.numErrors+=num
-
-    def resetStats(self):
-        self.resetDate=datetime.now()
-        self.numGot = 0
-        self.numPosted = 0
-        self.numErrors = 0
-
-def main():
     logger.info('hnscrape: starting.')
 
     jobs=[]
@@ -455,21 +469,35 @@ def main():
     logger.info('hnscrape: terminating.')
     return
 
-if __name__=='__main__':
-    loggingSetup(config.LOGLEVEL, config.LOGFILE, config.ERRORS_ONLY_LOG)
-    _stats=StatLogger()  # global
-    main()
 
-    # For testing
-    # pageSource=open('pageSource','r').read()
-    # hnPage=HNPage(pageSource, 'news', 2)
-    # pageSource2=open('pageSource2','r').read()
-    # hnPage=HNPage(pageSource2, 'news', 2)
+# noinspection PyShadowingNames
+def parseArgs():
+    description = '''
+    Scrape news.ycombinator.com and save in Cloudant. Configuration in config.py. Run with --daemon and run continuously as a daemon. Use upstart to run as service and autostart. Also run hnmonitor to monitor the functioning and alert administrator if errors. See README.md for more information.
+    '''
+
+    parser = argparse.ArgumentParser(add_help=True, description=description)
+    parser.add_argument('-d', '--daemon', action='store_true', help='Run as daemon')
+    parser.add_argument('--nostdout', action='store_true', help='Run without printing to stdout')
+
+    args = parser.parse_args()
+
+    return args
+
+if __name__ == '__main__':
+    print '******hnscrape in main'
+    args = parseArgs()
+    if args.daemon:
+        with daemon.DaemonContext():
+            print '************ hnscrape in daemon'
+            main(args)
+    else:
+        main(args)
 
 
 
+# TODO: TooFewPosts is wrong. _changes only gives me how many records changed, not how many times it was updated
 # TODO: Remove print statements & minimize logging.
-# TODO: Daemon mode
 # TODO: Data replication, tranfer, and historical cleanup (see below)
 
 # noinspection PyStatementEffect
