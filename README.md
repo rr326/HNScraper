@@ -30,6 +30,8 @@ Tools for scraping Hacker News and uploading to Cloudant.
 
 ## Todo
 
+* >> TODO: Remove alert debugging
+
 * Move scripts from Ross' digitalocean server to cloudant server
 * Fix some data problems
   * Old data - there were a few bugs that I fixed and should clean the old data
