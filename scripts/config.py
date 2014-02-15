@@ -16,7 +16,7 @@ logging.Logger.progress=log_progress
 SCRIPT_DIR=os.path.split(os.path.realpath(__file__))[0]
 
 LOGFILE=os.path.join(SCRIPT_DIR, 'log', 'hnscrape.log')
-LOGLEVEL=logging.DEBUG
+LOGLEVEL=logging.INFO
 
 
 PAGE_RETRY=5
@@ -47,10 +47,10 @@ STATS_HOURS=1
 ERRORS_ONLY_LOG=os.path.join(SCRIPT_DIR, 'log', 'errors_only.log')
 
 # hnmonitor
-RUNFREQUENCY = 1 # 6  # hours (integer > 1)
+RUNFREQUENCY = 6  # hours (integer >= 1)
 MAXERRORS = 4
 NUMPOSTSPERPAGE=30  # Invariant, but put here so I don't hardcode
-POSTERRORTHRESHOLD=.8  # Anything less than 80% will cause an alert
+POSTERRORTHRESHOLD=.9  # Anything less than 80% will cause an alert
 
 
 # Email

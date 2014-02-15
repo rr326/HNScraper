@@ -94,6 +94,7 @@ class CouchData(object):
             retval=self.db.changes(since=self.last_seq, include_docs=True)
             numPosts=self.countUpdatesSince(retval.get('results'), self.lastTimestamp)
             self.last_seq = retval['last_seq']
+            self.lastTimestamp = datetimeToStr(datetime.now() - timedelta(seconds=-2))
         except Exception as e:
             logger.error('getNumPostsAndUpdateSeq - failed. {0}'.format(e), exc_info=True)
             numPosts=-1
@@ -213,6 +214,8 @@ def main(args):
 
         if tooManyErrors or tooFewPosts or config.HNMONITOR_FORCE_SEND:
             alert(tooManyErrors, tooFewPosts)
+        else:
+            logger.info('All is well - no alert needed. Going back to sleep for {0} hours'.format(config.RUNFREQUENCY))
 
 
         sleepTime=config.RUNFREQUENCY*60*60
