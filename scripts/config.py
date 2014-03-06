@@ -70,7 +70,7 @@ EMAIL_TEXT='hnscraper does not appear to be working properly.\nCheck log file (h
 #
 LOCAL_DEBUG=False
 MOCK_PAGE=os.path.join(SCRIPT_DIR,  'test/pageSource')
-HNMONITOR_FORCE_SEND=True    # Force sending
+HNMONITOR_FORCE_SEND=False    # Force sending
 
 # Overrides For debugging
 # LOCAL_DEBUG=True
