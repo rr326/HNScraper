@@ -295,17 +295,23 @@ class HNPage(object):
             d['rank']=asInt(mymatch('([0-9]*)\.', tds[0].text))
             d['title']=tds[2].a.text
             d['href']=tds[2].a.attrs['href']
+
+            # Fix hrefs (item?id=7356084 ==> https://news.ycombinator.com/item?id=7356084)
+            matchHrefID = re.match('item\?id=([0-9]{7,10})', tds[2].a.attrs['href'])
+            if matchHrefID:
+                d['href'] = 'https://news.ycombinator.com/{0}'.format(tds[2].a.attrs['href'])
+
+            # Set ids
             if tds[1].a:
                 d['id']=mymatch('up_([0-9]*)',tds[1].a.attrs['id'])
             else:  # Jobs have empty tds[1].
-                match= re.match('item\?id=([0-9]{7,10})',tds[2].a.attrs['href'])
-                if match:
+                if matchHrefID:
                     # Found a job with id pattern: href="item?id=7219911'
                     d['id']=match.group(1)
-                    d['href']='https://news.ycombinator.com/{0}'.format(tds[2].a.attrs['href'])
                 else:
                     # Found job with no id available. Use href + title for id and hope it is invariant
                     d['id']='JOB: '+d['href'] + d['title']
+
             if tds[2].span:
                 d['domain']=str(mymatch(' *\(([^)]*)\) *', tds[2].span.text))
         except Exception as e:
@@ -498,6 +504,8 @@ if __name__ == '__main__':
 # TODO: TooFewPosts is wrong. _changes only gives me how many records changed, not how many times it was updated
 # TODO: Remove print statements & minimize logging.
 # TODO: Data replication, tranfer, and historical cleanup (see below)
+# TODO: FYI - is this correct? It feels like I'm missing a bunch of commits (the second set of PG changes I caught). But I'm probably wrong - don't know how that could be the case.
+# TODO: Should encode JOBS with a date or somethign - there is going to be a collision otherwise
 
 # noinspection PyStatementEffect
 '''
