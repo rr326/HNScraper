@@ -307,7 +307,7 @@ class HNPage(object):
             else:  # Jobs have empty tds[1].
                 if matchHrefID:
                     # Found a job with id pattern: href="item?id=7219911'
-                    d['id']=match.group(1)
+                    d['id']=matchHrefID.group(1)
                 else:
                     # Found job with no id available. Use href + title for id and hope it is invariant
                     d['id']='JOB: '+d['href'] + d['title']

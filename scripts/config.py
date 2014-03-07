@@ -16,7 +16,7 @@ logging.Logger.progress=log_progress
 SCRIPT_DIR=os.path.split(os.path.realpath(__file__))[0]
 
 LOGFILE=os.path.join(SCRIPT_DIR, 'log', 'hnscrape.log')
-LOGLEVEL=logging.INFO
+LOGLEVEL=logging.DEBUG
 
 
 PAGE_RETRY=5
