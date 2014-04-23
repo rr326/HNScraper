@@ -16,25 +16,25 @@ logging.Logger.progress=log_progress
 SCRIPT_DIR=os.path.split(os.path.realpath(__file__))[0]
 
 LOGFILE=os.path.join(SCRIPT_DIR, 'log', 'hnscrape.log')
-LOGLEVEL=logging.DEBUG
+LOGLEVEL=logging.INFO
 
 
 PAGE_RETRY=5
 PAGE_RETRY_WAIT=30
 
-# Scraper config
-
-# old
-# COUCH_SERVER='https://rrosen326.cloudant.com'
-# COUCH_UN='matenedidearandisturpetw'
-# COUCH_PW='23pmLFJvWa0XhQ8mWxDxlElP'
-# COUCH_DB='hackernews'
-
-# New
 COUCH_SERVER='https://cs.cloudant.com'
-COUCH_UN='stopuricappecipertimedst'
-COUCH_PW='0fTFpvuVNxXPL4pdkdLffSDb'
 COUCH_DB='news'
+
+#
+# Note - this requires environment variables
+# eg: .bshrc contains export HN_UN='XXXX'
+#
+if ('HN_UN' not in os.environ or 'HN_PW' not in os.environ):
+    print '*'*80+'\n'+'You must set HN_UN & HN_PW as environment variables (in .bashrc)\n'+'*'*80
+    raise Exception('Error - You must set HN_UN & HN_PW as environment variables (in .bashrc) ')
+
+COUCH_UN=os.environ['HN_UN']
+COUCH_PW=os.environ['HN_PW']
 
 COUCH_ID_VIEW='by/id'
 SHORT_WAIT=15
@@ -73,7 +73,7 @@ MOCK_PAGE=os.path.join(SCRIPT_DIR,  'test/pageSource')
 HNMONITOR_FORCE_SEND=False    # Force sending
 
 # Overrides For debugging
-# LOCAL_DEBUG=True
+# LOGLEVEL=logging.DEBUG
 # SHORT_WAIT=5
 # LONG_WAIT=5
 # STATS_HOURS=1/(3600/20)
@@ -83,13 +83,9 @@ HNMONITOR_FORCE_SEND=False    # Force sending
 
 '''
 CouchDB Views
-The database needs to be set up with the following views. (This is here to capture via source control.)
-_design/by/id
-function(doc) {
-    if (doc.id) {
-        emit(doc.id, doc);
-    }
-}
+The database needs to be set up with the view: _design/by/id
+
+==> This is in the hinsight couchapp directory
 
 '''
 
