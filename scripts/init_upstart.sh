@@ -2,7 +2,7 @@
 
 # Set up upstart with modified configuration
 # Run as sudo
-cp *.conf /etc/init
+cp hnscrape.conf hnmonitor.conf /etc/init
 initctl reload-configuration
 restart hnmonitor
 restart hnscrape
