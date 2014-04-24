@@ -26,15 +26,10 @@ COUCH_SERVER='https://cs.cloudant.com'
 COUCH_DB='news'
 
 #
-# Note - this requires environment variables
-# eg: .bshrc contains export HN_UN='XXXX'
+# Couch UN & PW must be set via command line args in the main module (eg: hnscrape.py)
 #
-if ('HN_UN' not in os.environ or 'HN_PW' not in os.environ):
-    print '*'*80+'\n'+'You must set HN_UN & HN_PW as environment variables (in .bashrc)\n'+'*'*80
-    raise Exception('Error - You must set HN_UN & HN_PW as environment variables (in .bashrc) ')
-
-COUCH_UN=os.environ['HN_UN']
-COUCH_PW=os.environ['HN_PW']
+COUCH_UN='NOT SET - SET VIA COMMAND LINE ARGS'
+COUCH_PW='NOT SET - SET VIA COMMAND LINE ARGS'
 
 COUCH_ID_VIEW='by/id'
 SHORT_WAIT=15
@@ -73,12 +68,10 @@ MOCK_PAGE=os.path.join(SCRIPT_DIR,  'test/pageSource')
 HNMONITOR_FORCE_SEND=False    # Force sending
 
 # Overrides For debugging
-# LOGLEVEL=logging.DEBUG
-# SHORT_WAIT=5
-# LONG_WAIT=5
-# STATS_HOURS=1/(3600/20)
-# PAGES_TO_GET = todoList = [{'page': 'http://news.ycombinator.com', 'depth': 0, 'wait': SHORT_WAIT},  # depth 0 is page 1
-#                            {'page': 'http://news.ycombinator.com/news2', 'depth': 0, 'wait': LONG_WAIT}]
+LOGLEVEL=logging.DEBUG
+SHORT_WAIT=5
+LONG_WAIT=30
+STATS_HOURS=1/(3600/20)
 
 
 '''

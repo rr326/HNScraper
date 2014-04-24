@@ -233,6 +233,8 @@ def parseArgs():
     parser=argparse.ArgumentParser(add_help=True, description=description)
     parser.add_argument('-d', '--daemon', action='store_true', help='Run as daemon')
     parser.add_argument('--nostdout', action='store_true', help='Run without printing to stdout')
+    parser.add_argument('--UN', help='Cloudant UN / Key', required=True)
+    parser.add_argument('--PW', help='Cloudant PW', required=True)
 
     args=parser.parse_args()
 
@@ -240,6 +242,9 @@ def parseArgs():
 
 if __name__ == '__main__':
     args=parseArgs()
+    config.COUCH_UN = args.UN
+    config.COUCH_PW = args.PW
+
     if args.daemon:
         with daemon.DaemonContext():
             print 'Running as daemon'

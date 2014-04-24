@@ -486,6 +486,8 @@ def parseArgs():
     parser = argparse.ArgumentParser(add_help=True, description=description)
     parser.add_argument('-d', '--daemon', action='store_true', help='Run as daemon')
     parser.add_argument('--nostdout', action='store_true', help='Run without printing to stdout')
+    parser.add_argument('--UN', help='Cloudant UN / Key', required=True)
+    parser.add_argument('--PW', help='Cloudant PW', required=True)
 
     args = parser.parse_args()
 
@@ -493,6 +495,9 @@ def parseArgs():
 
 if __name__ == '__main__':
     args = parseArgs()
+    config.COUCH_UN = args.UN
+    config.COUCH_PW = args.PW
+
     if args.daemon:
         with daemon.DaemonContext():
             main(args)
@@ -503,8 +508,6 @@ if __name__ == '__main__':
 
 # TODO: TooFewPosts is wrong. _changes only gives me how many records changed, not how many times it was updated
 # TODO: Remove print statements & minimize logging.
-# TODO: Data replication, tranfer, and historical cleanup (see below)
-# TODO: FYI - is this correct? It feels like I'm missing a bunch of commits (the second set of PG changes I caught). But I'm probably wrong - don't know how that could be the case.
 # TODO: Should encode JOBS with a date or somethign - there is going to be a collision otherwise
 
 # noinspection PyStatementEffect
