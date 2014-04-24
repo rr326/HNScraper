@@ -72,6 +72,8 @@ LOGLEVEL=logging.DEBUG
 SHORT_WAIT=5
 LONG_WAIT=30
 STATS_HOURS=1/(3600/20)
+PAGES_TO_GET = todoList = [{'page': 'http://news.ycombinator.com', 'depth': 0, 'wait': SHORT_WAIT},  # depth 0 is page 1
+                           {'page': 'http://news.ycombinator.com/news2', 'depth': 0, 'wait': LONG_WAIT}]
 
 
 '''

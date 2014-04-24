@@ -15,6 +15,7 @@ service hnscrape start
 # Wait a few seconds to give them a chance to fail, if they are going to
 sleep 5s
 
+echo
 echo 'Status of hnmonitor and hnscrape'
 echo '================================'
 status hnmonitor
