@@ -1,5 +1,5 @@
 from __future__ import division
-import logging, os
+import logging, os, json
 
 #
 # Logging
@@ -82,4 +82,15 @@ The database needs to be set up with the view: _design/by/id
 
 '''
 
+
+def setUNPW(pw_file):
+    """
+    Sets the modules (global) COUCH_UN & COUCH_PW variables
+    """
+    global COUCH_UN, COUCH_PW
+
+    with open(pw_file, 'r') as f:
+        tmp = json.load(f)
+        COUCH_UN = tmp['COUCH_UN']
+        COUCH_PW = tmp['COUCH_PW']
 
