@@ -444,6 +444,7 @@ def postHNWorker(postHNQueue, localDebug):
             logger.error('postHNWorker - postHNQueue.get errored: {0}'.format(e))
             _stats.addError()
 
+
     return
 
 def statsWorker():
