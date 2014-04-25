@@ -89,10 +89,12 @@ def setCredentials(pw_file):
     """
     Sets the modules (global) COUCH_UN & COUCH_PW variables
     """
-    global COUCH_UN, COUCH_PW
+    global COUCH_UN, COUCH_PW, EMAIL_PW
 
     with open(pw_file, 'r') as f:
         tmp = json.load(f)
         COUCH_UN = tmp['COUCH_UN']
         COUCH_PW = tmp['COUCH_PW']
+        EMAIL_PW = tmp['EMAIL_PW']
+
 
