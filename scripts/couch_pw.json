@@ -1,6 +1,0 @@
-{
-  "comment": "Hacker news cloudant writer un/pw for https://cs.cloudant.com/news",
-  "instructions": "Set UN(key) / PW below and store this file outside the git directory structure (this is a sample)",
-  "COUCH_UN": "XXXX",
-  "COUCH_PW": "XXXX"
-}

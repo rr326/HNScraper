@@ -28,8 +28,8 @@ COUCH_DB='news'
 #
 # Couch UN & PW must be set via command line args in the main module (eg: hnscrape.py)
 #
-COUCH_UN='NOT SET - SET VIA COMMAND LINE ARGS'
-COUCH_PW='NOT SET - SET VIA COMMAND LINE ARGS'
+COUCH_UN='NOT SET - SET VIA setCredentials()'
+COUCH_PW='NOT SET - SET VIA setCredentials()'
 
 COUCH_ID_VIEW='by/id'
 SHORT_WAIT=15
@@ -50,7 +50,7 @@ POSTERRORTHRESHOLD=.9  # Anything less than 80% will cause an alert
 
 # Email
 EMAIL_ADDR='noreply@zephyrzone.org'
-EMAIL_PW='84bc29x'
+EMAIL_PW='NOT SET - SET VIA setCredentials()'
 EMAIL_PORT=80
 SMTP_SERVER='smtpout.secureserver.net'
 EMAIL_FROM=EMAIL_ADDR
@@ -85,7 +85,7 @@ The database needs to be set up with the view: _design/by/id
 '''
 
 
-def setUNPW(pw_file):
+def setCredentials(pw_file):
     """
     Sets the modules (global) COUCH_UN & COUCH_PW variables
     """

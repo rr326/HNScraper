@@ -52,6 +52,8 @@ class StatLogger(object):
 #
 _stats=StatLogger()
 
+
+
 # ------------------------------------------------------------------------
 
 def mymatch(regex, text, groupNum=1, retType=None):
@@ -75,12 +77,6 @@ def asInt(text):
 def datetimeToStr(dt):
     return dt.strftime('%Y-%m-%d %H:%M:%S')
 
-
-#
-#
-# Support functions
-#
-#
 
 def loggingSetup(log_level, logfile, errorsOnlyLog, noScreen=False):
     logger.setLevel(log_level)
@@ -495,7 +491,7 @@ def parseArgs():
 
 if __name__ == '__main__':
     args = parseArgs()
-    config.setUNPW(args.pwfile)
+    config.setCredentials(args.pwfile)
 
     if args.daemon:
         with daemon.DaemonContext():
@@ -505,15 +501,4 @@ if __name__ == '__main__':
 
 
 
-# TODO: TooFewPosts is wrong. _changes only gives me how many records changed, not how many times it was updated
-# TODO: Remove print statements & minimize logging.
-# TODO: Should encode JOBS with a date or somethign - there is going to be a collision otherwise
-
-# noinspection PyStatementEffect
-'''
-TODO
-Data cleanup (of existing records)
-    * Add doc_type: 'post' to all recs
-    * For jobs recs: fix id, href, and created
-    * Delete mocked testing data
-'''
+# TODO: Should encode JOBS with a date or something - there is going to be a collision otherwise

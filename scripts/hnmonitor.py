@@ -112,8 +112,6 @@ class CouchData(object):
         return numUpdates
 
     def getNumPostedTest(self, lastTimestamp=''):
-        seq="202583-g1AAAAG3eJzLYWBgYMlgTmFQSElKzi9KdUhJMtfLTS3KLElMT9VLzskvTUnMK9HLSy3JAapkSmRIsv___39WBnMSA8Mm51ygGHtyUpqFYbIFEUag2mOCx54kByCZVA-36oQ92CpTY8NUQzNLIkwh3kt5LECSoQFIAW3bD7Hu9nSwdYYpaWYmhqkk-8yYoHUHINZBfXfQDmxdinmSial5EhEmZQEAMz6PmA"
-        #retval = self.db.changes(descending=False, limit=4, since=seq, include_docs=True)
         retval = self.db.changes(descending=True, limit=100,  include_docs=True)
         return self.countUpdatesSince(retval.get('results'), lastTimestamp)
 
@@ -242,7 +240,7 @@ def parseArgs():
 
 if __name__ == '__main__':
     args = parseArgs()
-    config.setUNPW(args.pwfile)
+    config.setCredentials(args.pwfile)
 
     if args.daemon:
         with daemon.DaemonContext():

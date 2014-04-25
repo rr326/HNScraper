@@ -8,7 +8,7 @@ Tools for scraping Hacker News and uploading to Cloudant.
 * hnmonitor.py - this monitors hnscrape and emails a list of administrators if there are too many errors or too few posts (ie: something is wrong)
 * config.py - main configuration file
 * *.conf - configuration for upstart (ie: run as a service on ubuntu)
-* couch_pw.json - SAMPLE pw file
+* hn_credentials.json - SAMPLE pw file
 * scripts/log/hnscrape.log - main log file
 * /var/log/upstart/hn*.log - upstart log files
 * init_upstart.sh - script to make it easier to update upstart
@@ -19,9 +19,9 @@ Tools for scraping Hacker News and uploading to Cloudant.
 2. Modify config.py
 3. Setup whatever you want to autorun these two functions. (Use the --daemon argument) If using upstart:
     * git pull origin master
-    * sudo cp scripts/couch_pw.json /etc   (Note - this is the default location. If you change this location,
+    * sudo cp scripts/hn_credentials.json /etc   (Note - this is the default location. If you change this location,
     need to also modify it in *.conf)
-    * Update /etc/couch_pw.json with proper passwords
+    * Update /etc/hn_credentials.json with proper passwords
     * sudo scripts/init_upstart.sh
 
 4. Monitor the log files a bit to make sure all is well, then you're done
@@ -34,11 +34,11 @@ Tools for scraping Hacker News and uploading to Cloudant.
 * >> TODO: Remove alert debugging
 
 * Move scripts from Ross' digitalocean server to cloudant server
-* Fix some data problems
-  * Old data - there were a few bugs that I fixed and should clean the old data
-  * Test data - there is a bunch of test data from teh last few days I need to remove
 * Get cloudant email address and pw for hnmonitor
-* Then, use the data!
+* Put cloudant email pw in credentials.json (and change name to credentials)
+* Prune git repo history and make a public version (http://stackoverflow
+.com/questions/4515580/how-do-i-remove-the-old-history-from-a-git-repository)
+
 
 ## Notes - hnscrape
 

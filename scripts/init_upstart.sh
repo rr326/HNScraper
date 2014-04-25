@@ -2,7 +2,7 @@
 
 # Set up upstart with modified configuration
 # Run as sudo
-# Note - be sure to have properly set up passwords in /etc/couch_pw.json
+# Note - be sure to have properly set up passwords in /etc/hn_credentials.json
 
 cp hnscrape.conf hnmonitor.conf /etc/init
 initctl reload-configuration
