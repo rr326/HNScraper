@@ -87,7 +87,7 @@ The database needs to be set up with the view: _design/by/id
 
 def setCredentials(pw_file):
     """
-    Sets the modules (global) COUCH_UN & COUCH_PW variables
+    Sets the module's (global) COUCH_UN & COUCH_PW & EMAIL_PW variables
     """
     global COUCH_UN, COUCH_PW, EMAIL_PW
 
