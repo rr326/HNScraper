@@ -31,13 +31,8 @@ Tools for scraping Hacker News and uploading to Cloudant.
 
 ## Todo
 
-* >> TODO: Remove alert debugging
-
 * Move scripts from Ross' digitalocean server to cloudant server
-* Get cloudant email address and pw for hnmonitor
-* Put cloudant email pw in credentials.json (and change name to credentials)
-* Prune git repo history and make a public version (http://stackoverflow
-.com/questions/4515580/how-do-i-remove-the-old-history-from-a-git-repository)
+
 
 
 ## Notes - hnscrape
