@@ -1,4 +1,4 @@
-# HNScraper
+# hind-cite-scraper
 
 Tools for scraping Hacker News and uploading to Cloudant.
 
