@@ -15,7 +15,13 @@ Tools for scraping Hacker News and uploading to Cloudant.
 
 ## Installation
 
-1. Install python 2.7 and all used libraries (using pip). Feel free to use a virtualenv.
+1. Install python 2.7 and all used libraries (using pip). Feel free to use a virtualenv. EG:
+
+    mkdir /home/rrosen326/pythonVENV
+    virtualenv /home/rrosen326/pythonVENV/weprod
+    source  /home/rrosen326/pythonVENV/weprod/bin/activate
+    pip install -r /home/rrosen326/hnscrape/scripts/python_requirements.txt
+
 2. Modify config.py
 3. Setup whatever you want to autorun these two functions. (Use the --daemon argument) If using upstart:
     * git pull origin master
@@ -31,7 +37,8 @@ Tools for scraping Hacker News and uploading to Cloudant.
 
 ## Todo
 
-* Move scripts from Ross' digitalocean server to cloudant server
+* BIG BUG:
+    * Make sure scraper sets timestamp str IN UTC.  Right now, if the server is in local time, the timestamp str will also be local time, which is a giant mess.
 
 
 

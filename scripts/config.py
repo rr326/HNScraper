@@ -16,7 +16,7 @@ logging.Logger.progress=log_progress
 SCRIPT_DIR=os.path.split(os.path.realpath(__file__))[0]
 
 LOGFILE=os.path.join(SCRIPT_DIR, 'log', 'hnscrape.log')
-LOGLEVEL=logging.INFO
+LOGLEVEL=logging.DEBUG  # ROSS
 
 
 PAGE_RETRY=5
@@ -34,8 +34,8 @@ COUCH_PW='NOT SET - SET VIA setCredentials()'
 COUCH_ID_VIEW='by/id'
 SHORT_WAIT=15
 LONG_WAIT=285
-PAGES_TO_GET=todoList=[{'page':'http://news.ycombinator.com', 'depth':0, 'wait': SHORT_WAIT},  # depth 0 is page 1
-              {'page':'http://news.ycombinator.com/news2', 'depth':0, 'wait': LONG_WAIT}]
+PAGES_TO_GET=todoList=[{'page':'http://news.ycombinator.com/news', 'depth':0, 'wait': SHORT_WAIT},  # depth 0 is page 1
+              {'page':'http://news.ycombinator.com/news?p=2', 'depth':0, 'wait': LONG_WAIT}]
 STATS_HOURS=1
 
 # For alerting - 1 line per error.
@@ -63,7 +63,7 @@ EMAIL_TEXT='hnscraper does not appear to be working properly.\nCheck log file (h
 #
 # Testing
 #
-LOCAL_DEBUG=False
+LOCAL_DEBUG=True # Ross
 MOCK_PAGE=os.path.join(SCRIPT_DIR,  'test/pageSource')
 HNMONITOR_FORCE_SEND=False    # Force sending
 

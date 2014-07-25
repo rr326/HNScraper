@@ -212,10 +212,6 @@ class HNPostSnap(object):
         return pformat(self.data)
 
     def addOrUpdateCouch(self, db, localDebug):
-        if localDebug:
-            # Mock - don't actually post
-            return
-
         view=db.view(config.COUCH_ID_VIEW, key=self.data['id'])
         if len(view)==0:
             # Create
@@ -226,14 +222,20 @@ class HNPostSnap(object):
             post.addNewSnap(self)
         else:
             raise Exception('HNPostSnap - multiple existing posts with id = {0}'.format(self.data['id']))
-        # Save it
-        db.update([post.getData()])
+
+        if localDebug:
+            # Mock - don't actually post.
+            logger.debug('Local debug. Not posting to Couch. '
+                         'WOULD post:\n{0}'.format(pformat(post.getData())))
+            return
+        else:  # Save it
+            db.update([post.getData()])
 
 
 class HNPage(object):
     def __init__(self, html, pageName, pageDepth):
         self.timestamp=now()
-        self.timestamp_str=datetimeToStr(datetime.fromtimestamp(self.timestamp))
+        self.timestamp_str=datetimeToStr(datetime.utcfromtimestamp(self.timestamp))
         self.pageName=pageName
         self.pageDepth=pageDepth
         self.html=html
@@ -362,13 +364,15 @@ class HNPage(object):
 
 def getPage(url, localDebug):
     if localDebug:
-        logger.warning('getPage(): MOCKED - using static file.')
-        with open(config.MOCK_PAGE, 'r') as f:
-            content = f.read()
-        _stats.addGot()
-        logger.warning('getPage(): mock - adding error to stats even with no error')
-        _stats.addError()
-        return content
+        logger.warning('LOCAL DEBUG IS CHANGED - NOT USING MOCK DATA (raw data instead)')
+        if False:
+            logger.warning('getPage(): MOCKED - using static file.')
+            with open(config.MOCK_PAGE, 'r') as f:
+                content = f.read()
+            _stats.addGot()
+            logger.warning('getPage(): mock - adding error to stats even with no error')
+            _stats.addError()
+            return content
 
     r={'ok':False}
 
