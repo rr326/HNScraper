@@ -16,7 +16,7 @@ logging.Logger.progress=log_progress
 SCRIPT_DIR=os.path.split(os.path.realpath(__file__))[0]
 
 LOGFILE=os.path.join(SCRIPT_DIR, 'log', 'hnscrape.log')
-LOGLEVEL=logging.DEBUG  # ROSS
+LOGLEVEL=logging.PROGRESS
 
 
 PAGE_RETRY=5
@@ -63,7 +63,7 @@ EMAIL_TEXT='hnscraper does not appear to be working properly.\nCheck log file (h
 #
 # Testing
 #
-LOCAL_DEBUG=True # Ross
+LOCAL_DEBUG=False
 MOCK_PAGE=os.path.join(SCRIPT_DIR,  'test/pageSource')
 HNMONITOR_FORCE_SEND=False    # Force sending
 
