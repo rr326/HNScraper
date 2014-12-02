@@ -34,7 +34,7 @@ COUCH_PW='NOT SET - SET VIA setCredentials()'
 COUCH_ID_VIEW='by/id'
 SHORT_WAIT=15
 LONG_WAIT=285
-PAGES_TO_GET=todoList=[{'page':'http://news.ycombinator.com/news', 'depth':0, 'wait': SHORT_WAIT},  # depth 0 is page 1
+PAGES_TO_GET=[{'page':'http://news.ycombinator.com/news', 'depth':0, 'wait': SHORT_WAIT},  # depth 0 is page 1
               {'page':'http://news.ycombinator.com/news?p=2', 'depth':0, 'wait': LONG_WAIT}]
 STATS_HOURS=1
 
@@ -72,8 +72,33 @@ HNMONITOR_FORCE_SEND=False    # Force sending
 # SHORT_WAIT=5
 # LONG_WAIT=30
 # STATS_HOURS=1/(3600/20)
-# PAGES_TO_GET = todoList = [{'page': 'http://news.ycombinator.com', 'depth': 0, 'wait': SHORT_WAIT},  # depth 0 is page 1
+# PAGES_TO_GET = [{'page': 'http://news.ycombinator.com', 'depth': 0, 'wait': SHORT_WAIT},  # depth 0 is page 1
 #                            {'page': 'http://news.ycombinator.com/news2', 'depth': 0, 'wait': LONG_WAIT}]
+
+
+#
+# Configuration overrides
+#
+configs = {
+    "production": {
+        "LOGLEVEL" :logging.PROGRESS,
+        "LONG_WAIT" : 285,
+        "SHORT_WAIT": 15,
+        "STATS_HOURS": 1,
+        "LOCAL_DEBUG": False
+    },
+    "test": {
+        "LOGLEVEL" :logging.DEBUG,
+        "LONG_WAIT" : 30,
+        "SHORT_WAIT": 5,
+        "STATS_HOURS": 1/(3600/20),
+        "LOCAL_DEBUG": True
+    }
+}
+CHOSEN_CONFIG = "test"  # Used below
+
+
+
 
 
 '''
@@ -98,3 +123,26 @@ def setCredentials(pw_file):
         EMAIL_PW = tmp['EMAIL_PW']
 
 
+# This updates this modules globals based on a chosen configuration
+def update_config(chosen_config, configs):
+    assert chosen_config in configs
+    config = configs[chosen_config]
+
+    for key in config:
+        globals()[key] = config[key]
+
+    # Manually set PAGES TO GET
+    globals()["PAGES_TO_GET"] = \
+        [{'page': 'http://news.ycombinator.com/news', 'depth': 0, 'wait': SHORT_WAIT},
+         {'page': 'http://news.ycombinator.com/news?p=2', 'depth': 0, 'wait': LONG_WAIT}
+        ]
+    return
+
+update_config(CHOSEN_CONFIG, configs)
+
+
+print "*"*80+"\nKey configurations:\n=================="
+for key in configs["test"].keys()+["PAGES_TO_GET"]:
+    print "{0:20} {1}".format(key, globals()[key])
+print
+exit()
