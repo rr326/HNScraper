@@ -199,6 +199,9 @@ class HNPost(object):
     def getData(self):
         return self.data
 
+    def markAsTest(self):
+        self.data['doc_type'] = 'test_data'
+
 class HNPostSnap(object):
     def __init__(self, *postDataDicts):
         self.data={}
@@ -211,7 +214,7 @@ class HNPostSnap(object):
     def __repr__(self):
         return pformat(self.data)
 
-    def addOrUpdateCouch(self, db, localDebug):
+    def addOrUpdateCouch(self, db, localDebug, is_test_data):
         view=db.view(config.COUCH_ID_VIEW, key=self.data['id'])
         if len(view)==0:
             # Create
@@ -225,15 +228,18 @@ class HNPostSnap(object):
 
         if localDebug:
             # Mock - don't actually post.
+            post.markAsTest()
             logger.debug('Local debug. Not posting to Couch. '
                          'WOULD post:\n{0}'.format(pformat(post.getData())))
             return
         else:  # Save it
+            if is_test_data:
+                post.markAsTest()
             db.update([post.getData()])
 
 
 class HNPage(object):
-    def __init__(self, html, pageName, pageDepth):
+    def __init__(self, html, pageName, pageDepth, is_test_data):
         self.timestamp=now()
         self.timestamp_str=datetimeToStr(datetime.utcfromtimestamp(self.timestamp))
         self.pageName=pageName
@@ -242,6 +248,7 @@ class HNPage(object):
         self.postSnaps=[]
         self.more=None
         self.soup=None
+        self.is_test_data=is_test_data
 
         try:
             self.processHNPage()
@@ -408,7 +415,7 @@ def getHNWorker(postHNQueue, localDebug):
         try:
             more=None
             pageSource=getPage(url, localDebug)
-            hnPage=HNPage(pageSource, page, depth)
+            hnPage=HNPage(pageSource, page, depth, is_test_data=localDebug)
             postHNQueue.put(hnPage)
             more=hnPage.more
         except Exception:
@@ -431,7 +438,7 @@ def postHNWorker(postHNQueue, localDebug):
             i=0
             for postSnap in hnPage.postSnaps:
                 try:
-                    postSnap.addOrUpdateCouch(db, localDebug)
+                    postSnap.addOrUpdateCouch(db, localDebug, hnPage.is_test_data)
                     i+=1
                 except Exception as e:
                     logger.error('postHNWorker. Failure posting rec to couch. id: {0}'.format(postSnap.data['id'] if 'id' in postSnap.data else '<id not found>'))

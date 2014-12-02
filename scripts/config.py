@@ -67,13 +67,8 @@ LOCAL_DEBUG=True
 MOCK_PAGE=os.path.join(SCRIPT_DIR,  'test/pageSource')
 HNMONITOR_FORCE_SEND=False    # Force sending
 
-# Overrides For debugging
-# LOGLEVEL=logging.DEBUG
-# SHORT_WAIT=5
-# LONG_WAIT=30
-# STATS_HOURS=1/(3600/20)
-# PAGES_TO_GET = [{'page': 'http://news.ycombinator.com', 'depth': 0, 'wait': SHORT_WAIT},  # depth 0 is page 1
-#                            {'page': 'http://news.ycombinator.com/news2', 'depth': 0, 'wait': LONG_WAIT}]
+
+
 
 
 #
@@ -145,4 +140,3 @@ print "*"*80+"\nKey configurations:\n=================="
 for key in configs["test"].keys()+["PAGES_TO_GET"]:
     print "{0:20} {1}".format(key, globals()[key])
 print
-exit()
