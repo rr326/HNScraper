@@ -1,1 +1,6 @@
 # Project-specific Python requirements
+gevent>=1.0
+Couchdb>=1.0
+requests>=2.5.0
+daemon>=1.1
+beautifulsoup4>=4.3.2

@@ -14,5 +14,4 @@
         - mainAccount
         - python
         - {role: projectSpecific, tags:[projectSpecific]}
-        - sampleFlask   # Sample flask app
 

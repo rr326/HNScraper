@@ -3,7 +3,8 @@
 require('time')
 
 # Have servi give all config params
-json_config = `servi -v0 utils --combined_rendered_servifile`
+# Hardcoding the path to servi is an unforatunate hack to get it to work with pycharm.  Not worth spending time on getting it to work properly.
+json_config = `~/pyvenv/py3.4/bin/servi -v0 utils --combined_rendered_servifile`
 extra_vars = JSON.parse(json_config)
 # require('pp') ; print(PP.pp(extra_vars)) ; abort('Debugging')
 
@@ -38,6 +39,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     config.vm.synced_folder "apache_config/sites-available", "/etc/apache2/sites-available", create: true,
         owner:  extra_vars["WEBDEV_UID"], group:  extra_vars["WEBDEV_GID"], mount_options: ["dmode=775","fmode=664"]
     config.vm.synced_folder  extra_vars["LOCAL_DIR"], "/var/www/#{ extra_vars['SITE_SUFFIX']}", create: true,
+        owner:  extra_vars["WEBDEV_UID"], group:  extra_vars["WEBDEV_GID"], mount_options: ["dmode=775","fmode=664"]
+    config.vm.synced_folder "scripts", "/opt/hind-cite-scraper", create: true,
         owner:  extra_vars["WEBDEV_UID"], group:  extra_vars["WEBDEV_GID"], mount_options: ["dmode=775","fmode=664"]
     
     config.vm.provision "ansible" do |ansible|
