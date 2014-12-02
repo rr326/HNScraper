@@ -1,0 +1,46 @@
+---
+
+#
+# Harden Apache
+#
+# Philosophy:
+#  * Do a reasonable amount given that my sites are not at major risk.
+#  * Be sure to prevent BAD stuff (eg: server-side script vulnerabilities) but
+#     don't worry about non-terrible stuff unless proven I need to (eg: DoS attacks)
+#  * Note: this is for a LOCAL, single-user system. I'm not trying to protect
+#     against malevolent users on my Linux system
+
+# Sources:
+#  http://httpd.apache.org/docs/current/misc/security_tips.html
+
+#
+# DoS attacks
+#
+# --> Do nothing now. Not worried about it
+
+#
+# Permissions on ServerRoot Directories
+#
+# They want this owned by root, but I am having "webdev" have
+# full privileges
+-   name: Give "webdev" user/group full access to /etc/apache2/**
+    file: dest=/etc/apache2 state=directory
+      owner=webdev group=webdev recurse=yes mode=775
+
+
+# mod_security - skipping for now
+# mod_evasive - skipping
+
+
+#
+# Copy the apache2.conf file
+# Many of the tweaks are in it
+#
+-   name: Use my securified apache2.conf
+    template: dest=/etc/apache2/apache2.conf src=apache2.conf backup=yes force=yes
+
+#
+# Restart apache
+#
+-   name: Restart Apache
+    service: name=apache2 state=restarted enabled=yes

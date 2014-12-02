@@ -1,0 +1,34 @@
+---
+
+-   name: "create {{ MAIN_USERNAME }} account"
+    user: name="{{ MAIN_USERNAME }}"
+      createhome=yes shell=/usr/bin/zsh
+      group=webdev groups=adm,admin,sudo,webdev,www-data
+
+-   name: "Add rsa key for user {{ MAIN_USERNAME }}"
+    authorized_key: key="{{ lookup('file', MAIN_RSA_KEY_FILE) }}"
+                    user="{{ MAIN_USERNAME }}"
+
+-   name: "Add rsa key for user webdev"
+    authorized_key: key="{{ lookup('file', MAIN_RSA_KEY_FILE) }}"
+                    user="webdev"
+
+-   name: "copy .zshrc for user {{ MAIN_USERNAME }}"
+    copy: src=.zshrc dest="/home/{{ MAIN_USERNAME }}"
+      owner="{{ MAIN_USERNAME }}"
+    remote_user: "{{ MAIN_USERNAME }}"
+
+
+# Also setup vagrant user to use a similar config (so you can do vagrant ssh)
+
+-   name: "modify vagrant account"
+    user: name="vagrant"
+      createhome=yes shell=/usr/bin/zsh
+      group=webdev groups=adm,admin,sudo,webdev,www-data
+    when: IS_VAGRANT == True
+
+-   name: "copy .zshrc for user vagrant"
+    copy: src=.zshrc dest="/home/vagrant"
+      owner="vagrant"
+    remote_user: vagrant
+    when: IS_VAGRANT == True

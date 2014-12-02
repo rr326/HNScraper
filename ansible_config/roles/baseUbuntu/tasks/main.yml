@@ -1,0 +1,221 @@
+---
+
+# Testing stuff
+#- debug: var=vars
+#- debug: var=hostvars
+#- debug: msg="HOST_NAME = *{{ HOST_NAME }}*"
+#-  name: "Set hostname to {{ HOST_NAME }}"
+#   hostname: name="{{ HOST_NAME }}"
+#- debug: msg="HOST_NAME = *{{ HOST_NAME }}*"
+#- fail: msg="TESTING"
+
+
+-  debug: msg="HOST_NAME = *{{ HOST_NAME }}*"
+-  name: "Set hostname to {{ HOST_NAME }}"
+   hostname: name="{{ HOST_NAME }}"
+
+#
+# Turn off SSH DNS lookup
+# (Do first)
+#
+# Note - I am copying an sshd_config file rather than just doing a lineinfile
+# because lineinfile isn't leading with a newline, thereby causing ssh to fail
+# due to misconfiguration.
+# -   name: Turn off DNS in ssh since it causes a delay logging in on a trusty development box
+#     lineinfile: dest=/etc/ssh/sshd_config state=present create=yes line='\nUseDNS no'
+-   name: Copy sshd_config to /etc/ssh/sshd_conf
+    copy: src=sshd_config dest=/etc/ssh/sshd_config backup=yes force=yes
+-   service: name=ssh state=restarted
+
+#
+# Install packages
+#
+
+-   apt: update_cache=yes cache_valid_time=86400
+
+-   name: apt - install multiple packages
+    apt: pkg={{ item }} state=latest
+    with_items:
+      - apache2
+      - libapache2-mod-macro
+      - zsh
+      - unattended-upgrades
+      - update-notifier-common
+      - postfix
+      - libsasl2-2
+      - ca-certificates
+      - libsasl2-modules
+      - mailutils
+
+-   name: Apt -  Autoremove unused packages
+    shell: apt-get autoremove -y
+-   name: Apt - Autoclean cache
+    shell: apt-get autoclean -y
+
+#
+# Automatic Upgrades - https://help.ubuntu.com/community/AutomaticSecurityUpdates
+#
+-   copy: dest=/etc/apt/apt.conf.d/20auto-upgrades  src=20auto-upgrades
+-   copy: dest=/etc/apt/apt.conf.d/50unattended-upgrades  src=50unattended-upgrades
+-   lineinfile: >
+      dest=/etc/apt/apt.conf.d/10periodic
+      state=present
+      line='APT::Periodic::Unattended-Upgrade "1";'
+
+
+#
+# Set up admin user & group
+#
+-   group: name=admin state=present system=yes
+-   user: name=admin comment='admin' createhome=yes shell=/usr/bin/zsh group=admin groups=adm,admin,sudo
+-   authorized_key:  key="{{ lookup('file', MAIN_RSA_KEY_FILE) }}"
+                     user=admin
+#
+# Make sure sudo & admin groups do not require passwords for sudo access
+#
+-   copy: dest=/etc/sudoers.d/sudo_nopasswd src=sudo_nopasswd backup=yes force=yes
+-   file:  dest=/etc/sudoers.d/sudo_nopasswd mode=0440 owner=root group=root state=file
+-   service: name=sudo state=restarted
+
+#
+# Set up www-data & webdev groups & users
+#
+-   group: name=www-data state=present system=yes
+-   group: name=webdev state=present system=yes gid={{ WEBDEV_GID }}
+-   user:  name=www-data
+      state=present groups=www-data,webdev system=yes createhome=no
+-   user:  name=webdev
+      state=present group=webdev shell=/usr/bin/zsh createhome=yes uid={{ WEBDEV_UID }}
+
+#
+# Make sure apache logs & directory have proper owners / permissions
+#
+-   file: dest=/var/log/apache2
+      owner=www-data group=www-data recurse=yes mode=775
+-   file: dest=/var/log/apache2/{{ SITE_SUFFIX }}
+      owner=www-data group=www-data mode=775 state=directory
+-   file: dest=/etc/apache2 state=directory
+      owner=webdev group=webdev recurse=yes mode=775
+
+#
+# Make sure /var/www has proper ownership
+#
+-   name: Set /var/www to be owned by webdev
+    file: dest=/var/www state=directory group=webdev owner=webdev mode=770
+    when: IS_VAGRANT != True
+
+#
+# Set apache modules & sites
+#
+-   command: a2enmod expires  rewrite macro
+-   command: a2dissite default-ssl.conf 000-default.conf
+    ignore_errors : True
+-   file: path=/etc/apache2/sites-available/000-default.conf  state=absent
+-   file: path=/etc/apache2/sites-available/default-ssl.conf  state=absent
+-   file: path=/etc/apache2/sites-available/default           state=absent
+-   file: dest=/var/www/html state=absent  # Remove default apache site
+
+
+#
+# Set Servername
+#
+-   template: src=servername.conf.j2 dest=/etc/apache2/conf-available/servername.conf
+-   command: a2enconf servername.conf
+
+
+#
+# Delete any broken apache config links
+# (Which can easily happen if, say, you rename hind-cite-scraper.conf )
+-   name: Delete any broken links in apache2/sites-enabled
+    command: find  -L /etc/apache2/sites-enabled -maxdepth 1 -type l -delete
+
+#
+# Pagespeed
+#
+-   get_url: url=https://dl-ssl.google.com/dl/linux/direct/mod-pagespeed-stable_current_amd64.deb
+      dest=/tmp/mod-pagespeed-stable_current_amd64.deb force=no
+-   apt: deb=/tmp/mod-pagespeed-stable_current_amd64.deb
+
+#
+# Restart apache
+#
+-   name: Restart Apache
+    service: name=apache2 state=restarted enabled=yes
+
+
+#
+# Create local sublime command. Note you need to set up your home machine as well.
+#
+# http://bit.ly/1aGHLId
+# http://stackoverflow.com/a/18107549/1400991
+# http://stackoverflow.com/questions/18938950/rsub-with-sublime-and-ssh-connection-refusual
+
+-   get_url: dest=/usr/local/bin/subl url=https://raw.github.com/aurora/rmate/master/rmate
+-   file: state=file path=/usr/local/bin/subl mode=755
+
+
+#
+# Set up environment variables (/etc/environment in Ubuntu)
+#
+
+
+-   name:  "Make {{ PY_VENV_DIR }}"
+    file: dest={{ PY_VENV_DIR }} state=directory
+      owner=webdev group=webdev mode=775
+
+-   name: "/etc/environment: Set PY_VENV_DIR = {{ PY_VENV_DIR }}"
+    lineinfile: >
+        dest=/etc/environment
+        state=present
+        line='export PY_VENV_DIR="{{ PY_VENV_DIR }}"'
+
+#
+# Configure Postfix as a send-only mailer
+# Sources:
+# http://www.postfix.org/STANDARD_CONFIGURATION_README.html - nullmailer
+# http://yaui.me/postfix-gmail-smtp-server-relay-ubuntu/
+#
+-   template: src=postfix_main.cf.j2 dest=/etc/postfix/main.cf mode=644
+-   template: src=sasl_passwd.j2 dest=/etc/postfix/sasl_passwd mode=644
+-   template: src=postfix_aliases-regexp.j2 dest=/etc/postfix/aliases-regexp mode=644
+-   template: src=postfix_virtual-regexp.j2 dest=/etc/postfix/virtual-regexp mode=644
+
+-   command: postmap /etc/postfix/sasl_passwd
+-   file: path=/etc/postfix/cacerts state=directory
+-   command: cp /etc/ssl/certs/Thawte_Premium_Server_CA.pem /etc/postfix/cacerts
+-   service: name=postfix state=restarted
+
+
+#
+# Crontab MAILTO
+#
+-   name: "Crontab - set MAILTO = {{ DEFAULT_MAILTO_ADDRESS }} "
+    lineinfile: >
+      dest=/etc/crontab
+      state=present
+      line="MAILTO={{ DEFAULT_MAILTO_ADDRESS }}"
+
+#
+# Logrotate
+#
+-   name: Configure logrotate for apache
+    copy: src=logrotate_apache2 dest=/etc/logrotate.d/apache2
+
+
+#
+# Monit system monitoring
+# Simple monitoring (with email alerts). Just alert if the system is starting to crumble
+#
+-   name: apt - install monit
+    apt: pkg=monit state=latest
+    when: IS_VAGRANT != True
+
+-  name: Configure monit
+   template: src=monitrc.j2 dest=/etc/monit/monitrc
+   when: IS_VAGRANT != True
+
+# Don't run monit on the vagrant box. No need to get email alerts about your VM!
+-  service: name=monit state=restarted
+   when: IS_VAGRANT != True
+
+

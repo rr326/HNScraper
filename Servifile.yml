@@ -1,0 +1,31 @@
+# These configuration parameters affect Vagrant, ansible, and servi
+---
+
+
+STATIC_IP : "192.168.10.20"
+LOCAL_DIR : "src"
+SITE_SUFFIX: hind-cite-scraper
+
+
+
+SERVI_IGNORE_FILES:
+  - "^TEMPLATE_VERSION.json"
+  - "^Servifile.yml"
+  - "^Servifile_globals.yml"
+  - "^ansible_config/playbook.yml"
+  - "^ansible_config/roles/projectSpecific/.*"
+  - "^apache_config/sites-available/mysite.conf"
+  - "^src/.*"
+  - ".git"
+
+
+# This overrides the HOSTS['vagrant'] record from Servifile_globals.yml
+HOSTS:
+  vagrant:
+      hosts:
+        - 192.168.10.20
+      vars:
+          HOST_NAME: hind-cite-scraper
+          SERVER_NAME: hind-cite-scraper
+          IS_VAGRANT: True
+          ansible_ssh_port: 22
