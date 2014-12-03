@@ -82,7 +82,7 @@ class HNWorkList(object):
         return url,  self.todoList[self.curPage]['page'], self.curDepth, wait
 
 
-def getHNWorker(postHNQueue, localDebug):
+def getHNWorker(postHNQueue):
     workList=HNWorkList()
 
     more=''
@@ -91,8 +91,8 @@ def getHNWorker(postHNQueue, localDebug):
         # noinspection PyBroadException
         try:
             more=None
-            pageSource=getPage(url, localDebug)
-            hnPage=HNPage(pageSource, page, depth, is_test_data=localDebug)
+            pageSource=getPage(url)
+            hnPage=HNPage(pageSource, page, depth, )
             postHNQueue.put(hnPage)
             more=hnPage.more
         except Exception:
@@ -102,7 +102,7 @@ def getHNWorker(postHNQueue, localDebug):
 
     return
 
-def postHNWorker(postHNQueue, localDebug):
+def postHNWorker(postHNQueue):
     couch=couchdb.Server(config.COUCH_SERVER)
     couch.resource.credentials=(config.COUCH_UN, config.COUCH_PW)
     db=couch[config.COUCH_DB]
@@ -115,13 +115,13 @@ def postHNWorker(postHNQueue, localDebug):
             i=0
             for postSnap in hnPage.postSnaps:
                 try:
-                    postSnap.addOrUpdateCouch(db, localDebug, hnPage.is_test_data)
+                    postSnap.addOrUpdateCouch(db, hnPage.is_test_data)
                     i+=1
                 except Exception as e:
                     logger.error('postHNWorker. Failure posting rec to couch. id: {0}'.format(postSnap.data['id'] if 'id' in postSnap.data else '<id not found>'))
                     logger.error('  >> e: {1}\n  data: \n{0}'.format(pformat(postSnap.data), e))
             logger.progress('POSTED: {0} records to couch'.format(i))
-            if localDebug:
+            if config.LOCAL_DEBUG:
                 logger.warn('postHNWorker: MOCKED - not actually posting')
             stats.addPosted(i)
         except Exception as e:
@@ -153,8 +153,8 @@ def main(args):
     jobs=[]
 
     postHNQueue=gevent.queue.Queue()
-    jobs.append(gevent.spawn(getHNWorker, postHNQueue, config.LOCAL_DEBUG))
-    jobs.append(gevent.spawn(postHNWorker, postHNQueue, config.LOCAL_DEBUG))
+    jobs.append(gevent.spawn(getHNWorker, postHNQueue))
+    jobs.append(gevent.spawn(postHNWorker, postHNQueue))
     jobs.append(gevent.spawn(statsWorker))
 
     gevent.joinall(jobs)

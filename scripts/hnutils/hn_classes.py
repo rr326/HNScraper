@@ -114,7 +114,7 @@ class HNPostSnap(object):
     def __repr__(self):
         return pformat(self.data)
 
-    def addOrUpdateCouch(self, db, localDebug, is_test_data):
+    def addOrUpdateCouch(self, db, is_test_data):
         view=db.view(config.COUCH_ID_VIEW, key=self.data['id'])
         if len(view)==0:
             # Create
@@ -126,7 +126,7 @@ class HNPostSnap(object):
         else:
             raise Exception('HNPostSnap - multiple existing posts with id = {0}'.format(self.data['id']))
 
-        if localDebug:
+        if config.LOCAL_DEBUG:
             # Mock - don't actually post.
             post.markAsTest()
             logging.debug('Local debug. Not posting to Couch. '
@@ -139,7 +139,7 @@ class HNPostSnap(object):
 
 
 class HNPage(object):
-    def __init__(self, html, pageName, pageDepth, is_test_data):
+    def __init__(self, html, pageName, pageDepth):
         self.timestamp=now()
         self.timestamp_str=datetimeToStr(datetime.utcfromtimestamp(self.timestamp))
         self.pageName=pageName
@@ -148,7 +148,7 @@ class HNPage(object):
         self.postSnaps=[]
         self.more=None
         self.soup=None
-        self.is_test_data=is_test_data
+        self.is_test_data=config.LOCAL_DEBUG
 
         try:
             self.processHNPage()
