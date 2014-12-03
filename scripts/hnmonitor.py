@@ -10,12 +10,16 @@ It will send an email if:
 from __future__ import division
 from time import sleep
 from datetime import datetime, timedelta
-import couchdb
-import smtplib, argparse, daemon
+import smtplib
+import argparse
 from email.mime.text import MIMEText
-from hnscrape import datetimeToStr
 
-import config
+import couchdb
+import daemon
+
+from hnscrape import datetimeToStr
+from scripts.hnutils import config
+
 logger = config.logging.getLogger('hnmonitor')
 
 def loggingSetup(logfile, noScreen=False):
@@ -24,9 +28,9 @@ def loggingSetup(logfile, noScreen=False):
     logger.setLevel(log_level)
 
     # File logging
-    h=config.logging.FileHandler(logfile)
+    h= config.logging.FileHandler(logfile)
     h.setLevel(log_level)
-    formatter=config.logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    formatter= config.logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     h.setFormatter(formatter)
     logger.addHandler(h)
 
@@ -164,7 +168,7 @@ def getDefaults():
     return {
         'From' : config.EMAIL_ADDR,
         'To': config.EMAIL_RECIPIENTS,
-        'Subject':config.EMAIL_SUBJECT,
+        'Subject': config.EMAIL_SUBJECT,
         'dry_run':False
     }
 
@@ -213,10 +217,11 @@ def main(args):
         if tooManyErrors or tooFewPosts or config.HNMONITOR_FORCE_SEND:
             alert(tooManyErrors, tooFewPosts)
         else:
-            logger.info('All is well - no alert needed. Going back to sleep for {0} hours'.format(config.RUNFREQUENCY))
+            logger.info('All is well - no alert needed. Going back to sleep for {0} hours'.format(
+                config.RUNFREQUENCY))
 
 
-        sleepTime=config.RUNFREQUENCY*60*60
+        sleepTime= config.RUNFREQUENCY*60*60
         sleep(sleepTime)
     logger.info('hnmonitor: terminating')
     return

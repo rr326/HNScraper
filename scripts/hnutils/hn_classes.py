@@ -8,6 +8,7 @@ import logging
 import re
 
 
+
 def mymatch(regex, text, groupNum=1, retType=None):
     match = re.match(regex, text)
     if match:

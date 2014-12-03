@@ -19,9 +19,9 @@ def loggingSetupLocal():
     logger.setLevel(log_level)
 
     # File logging
-    h=config.logging.StreamHandler()
+    h= config.logging.StreamHandler()
     h.setLevel(log_level)
-    formatter=config.logging.Formatter('%(asctime)s - %(name)s - %(module)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    formatter= config.logging.Formatter('%(asctime)s - %(name)s - %(module)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     h.setFormatter(formatter)
     logger.addHandler(h)
     hnlogger.addHandler(h)

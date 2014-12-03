@@ -1,27 +1,30 @@
 from __future__ import division
 
-import gevent
 from gevent import monkey
 from gevent import queue
+
+import gevent
+
 #import threading  # Must be after monkey.patch
+from hnutils import config
+
 if __name__=='__main__':
     # Do not monkey patch when a library - it messes up ipython (which I use for testing)
     monkey.patch_all()
-
-import config
 
 import couchdb, daemon, argparse
 from urlparse import urljoin
 
 from datetime import timedelta
 from pprint import  pformat
-from scrape_stats import stats
-from hn_classes import HNPage
-from scrape_read import getPage
+import logging
+from hnutils.scrape_stats import stats
+from hnutils.hn_classes import HNPage
+from hnutils.scrape_read import getPage
 
 
 # Global
-logger = config.logging.getLogger('hnscrape')
+logger = logging.getLogger() # Make sure you are using the root logger
 
 
 def loggingSetup(log_level, logfile, errorsOnlyLog, noScreen=False):
@@ -30,22 +33,22 @@ def loggingSetup(log_level, logfile, errorsOnlyLog, noScreen=False):
     # File logging
     h=config.logging.FileHandler(logfile)
     h.setLevel(log_level)
-    formatter=config.logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    formatter= config.logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     h.setFormatter(formatter)
     logger.addHandler(h)
 
     if not noScreen:
         # Stdout
-        h=config.logging.StreamHandler()
+        h= config.logging.StreamHandler()
         h.setLevel(log_level)
-        formatter=config.logging.Formatter('%(levelname)s - %(message)s')
+        formatter= config.logging.Formatter('%(levelname)s - %(message)s')
         h.setFormatter(formatter)
         logger.addHandler(h)
 
     # Errors only - don't display message since I only want 1 line per error
-    h=config.logging.FileHandler(errorsOnlyLog)
+    h= config.logging.FileHandler(errorsOnlyLog)
     h.setLevel(config.logging.ERROR)
-    formatter=config.logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - Line: %(lineno)s', datefmt='%Y-%m-%d %H:%M:%S')
+    formatter= config.logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - Line: %(lineno)s', datefmt='%Y-%m-%d %H:%M:%S')
     h.setFormatter(formatter)
     logger.addHandler(h)
 
@@ -53,7 +56,7 @@ def loggingSetup(log_level, logfile, errorsOnlyLog, noScreen=False):
 
 class HNWorkList(object):
     def __init__(self):
-        self.todoList=config.PAGES_TO_GET
+        self.todoList= config.PAGES_TO_GET
         self.curPage=0
         self.curDepth=0
         self.numPages=len(self.todoList)
@@ -130,7 +133,8 @@ def postHNWorker(postHNQueue, localDebug):
 
 def statsWorker():
     """Wake up every hour and log stats, and then reset them"""
-    logger.info('STATS: Starting. Will report out every {0:.1g} hours'.format(config.STATS_HOURS))
+    logger.info('STATS: Starting. Will report out every {0:.1g} hours'.format(
+        config.STATS_HOURS))
     while True:
         gevent.sleep(timedelta(hours=config.STATS_HOURS).total_seconds())
         logger.info('STATS: {0}'.format(stats))
