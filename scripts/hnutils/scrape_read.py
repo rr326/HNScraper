@@ -8,16 +8,14 @@ import config
 
 
 def getPage(url):
-    if config.LOCAL_DEBUG:
-        logging.warning('LOCAL DEBUG IS CHANGED - NOT USING MOCK DATA (raw data instead)')
-        if False:
-            logging.warning('getPage(): MOCKED - using static file.')
-            with open(config.MOCK_PAGE, 'r') as f:
-                content = f.read()
-            stats.addGot()
-            logging.warning('getPage(): mock - adding error to stats even with no error')
-            stats.addError()
-            return content
+    if config.MOCK_INPUT:
+        logging.warning('getPage(): MOCKED - using static file.')
+        with open(config.MOCK_PAGE, 'r') as f:
+            content = f.read()
+        stats.addGot()
+        logging.warning('getPage(): mock - adding error to stats even with no error')
+        stats.addError()
+        return content
 
     r={'ok':False}
 

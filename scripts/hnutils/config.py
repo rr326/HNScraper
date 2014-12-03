@@ -63,7 +63,9 @@ EMAIL_TEXT='hnscraper does not appear to be working properly.\nCheck log file (h
 #
 # Testing
 #
-LOCAL_DEBUG=True
+MOCK_INPUT=False
+MOCK_OUTPUT=False
+TEST_RUN=False
 MOCK_PAGE=os.path.join(SCRIPT_DIR,  'test/pageSource')
 HNMONITOR_FORCE_SEND=False    # Force sending
 
@@ -80,17 +82,21 @@ configs = {
         "LONG_WAIT" : 285,
         "SHORT_WAIT": 15,
         "STATS_HOURS": 1,
-        "LOCAL_DEBUG": False
+        "MOCK_INPUT": False,
+        "MOCK_OUTPUT": False,
+        "TEST_RUN": False
     },
     "test": {
         "LOGLEVEL" :logging.DEBUG,
         "LONG_WAIT" : 30,
         "SHORT_WAIT": 5,
         "STATS_HOURS": 1/(3600/20),
-        "LOCAL_DEBUG": True
+        "MOCK_INPUT": False,
+        "MOCK_OUTPUT": True,
+        "TEST_RUN": True
     }
 }
-CHOSEN_CONFIG = "test"  # Used below
+CHOSEN_CONFIG = "test"  # Default config bundle
 
 
 
@@ -131,12 +137,14 @@ def update_config(chosen_config, configs):
         [{'page': 'http://news.ycombinator.com/news', 'depth': 0, 'wait': SHORT_WAIT},
          {'page': 'http://news.ycombinator.com/news?p=2', 'depth': 0, 'wait': LONG_WAIT}
         ]
+
+    print "\nConfiguration Bundle Set: {0}:\n==================".format(chosen_config)
+    for key in configs["test"].keys() + ["PAGES_TO_GET"]:
+        print "{0:20} {1}".format(key, globals()[key])
+    print
     return
 
 update_config(CHOSEN_CONFIG, configs)
 
 
-print "*"*80+"\nKey configurations:\n=================="
-for key in configs["test"].keys()+["PAGES_TO_GET"]:
-    print "{0:20} {1}".format(key, globals()[key])
-print
+

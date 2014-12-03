@@ -126,7 +126,7 @@ class HNPostSnap(object):
         else:
             raise Exception('HNPostSnap - multiple existing posts with id = {0}'.format(self.data['id']))
 
-        if config.LOCAL_DEBUG:
+        if config.MOCK_OUTPUT:
             # Mock - don't actually post.
             post.markAsTest()
             logging.debug('Local debug. Not posting to Couch. '
@@ -148,7 +148,7 @@ class HNPage(object):
         self.postSnaps=[]
         self.more=None
         self.soup=None
-        self.is_test_data=config.LOCAL_DEBUG
+        self.is_test_data=config.MOCK_OUTPUT or config.MOCK_INPUT or config.TEST_RUN
 
         try:
             self.processHNPage()
