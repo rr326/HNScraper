@@ -22,8 +22,17 @@ LOGLEVEL=logging.PROGRESS
 PAGE_RETRY=5
 PAGE_RETRY_WAIT=30
 
-COUCH_SERVER='https://cs.cloudant.com'
-COUCH_DB='news'
+
+servers = {
+    'prod': {
+        'COUCH_SERVER': 'https://cs.cloudant.com',
+        'COUCH_DB': 'news'
+    },
+    'test': {
+        'COUCH_SERVER': 'https://rrosen326.cloudant.com',
+        'COUCH_DB': 'hind-cite'
+    }
+}
 
 #
 # Couch UN & PW must be set via command line args in the main module (eg: hnscrape.py)
@@ -32,11 +41,8 @@ COUCH_UN='NOT SET - SET VIA setCredentials()'
 COUCH_PW='NOT SET - SET VIA setCredentials()'
 
 COUCH_ID_VIEW='by/id'
-SHORT_WAIT=15
-LONG_WAIT=285
-PAGES_TO_GET=[{'page':'http://news.ycombinator.com/news', 'depth':0, 'wait': SHORT_WAIT},  # depth 0 is page 1
-              {'page':'http://news.ycombinator.com/news?p=2', 'depth':0, 'wait': LONG_WAIT}]
-STATS_HOURS=1
+
+NEW_NUMTOGET=60
 
 # For alerting - 1 line per error.
 ERRORS_ONLY_LOG=os.path.join(SCRIPT_DIR, 'log', 'errors_only.log')
@@ -63,9 +69,6 @@ EMAIL_TEXT='hnscraper does not appear to be working properly.\nCheck log file (h
 #
 # Testing
 #
-MOCK_INPUT=False
-MOCK_OUTPUT=False
-TEST_RUN=False
 MOCK_PAGE=os.path.join(SCRIPT_DIR,  'test/pageSource')
 HNMONITOR_FORCE_SEND=False    # Force sending
 
@@ -76,24 +79,31 @@ HNMONITOR_FORCE_SEND=False    # Force sending
 #
 # Configuration overrides
 #
+LONG_WAIT = SHORT_WAIT = NEW_WAIT = STATS_HOURS = MOCK_INPUT = MOCK_OUTPUT = \
+TEST_RUN = COUCH_SERVER = COUCH_DB = None  # To help pycharm find the variables
+
 configs = {
     "production": {
         "LOGLEVEL" :logging.PROGRESS,
         "LONG_WAIT" : 285,
         "SHORT_WAIT": 15,
+        "NEW_WAIT": 300,
         "STATS_HOURS": 1,
         "MOCK_INPUT": False,
         "MOCK_OUTPUT": False,
-        "TEST_RUN": False
+        "TEST_RUN": False,
+        "server": "prod"
     },
     "test": {
         "LOGLEVEL" :logging.DEBUG,
         "LONG_WAIT" : 30,
         "SHORT_WAIT": 5,
+        "NEW_WAIT": 30,
         "STATS_HOURS": 1/(3600/20),
         "MOCK_INPUT": False,
-        "MOCK_OUTPUT": True,
-        "TEST_RUN": True
+        "MOCK_OUTPUT": False,
+        "TEST_RUN": True,
+        "server": "test"
     }
 }
 CHOSEN_CONFIG = "test"  # Default config bundle
@@ -130,17 +140,21 @@ def update_config(chosen_config, configs):
     config = configs[chosen_config]
 
     for key in config:
-        globals()[key] = config[key]
+        if key is 'server':
+            for field in servers[config[key]]:
+                globals()[field] = servers[config[key]][field]
+        else:
+            globals()[key] = config[key]
 
     # Manually set PAGES TO GET
     globals()["PAGES_TO_GET"] = \
-        [{'page': 'http://news.ycombinator.com/news', 'depth': 0, 'wait': SHORT_WAIT},
-         {'page': 'http://news.ycombinator.com/news?p=2', 'depth': 0, 'wait': LONG_WAIT}
+        [{'page': 'http://news.ycombinator.com/news', 'depth': 0, 'wait': config['SHORT_WAIT']},
+         {'page': 'http://news.ycombinator.com/news?p=2', 'depth': 0, 'wait': ['LONG_WAIT']}
         ]
 
     print "\nConfiguration Bundle Set: {0}:\n==================".format(chosen_config)
     for key in configs["test"].keys() + ["PAGES_TO_GET"]:
-        print "{0:20} {1}".format(key, globals()[key])
+        print "{0:20} {1}".format(key, globals().get(key))
     print
     return
 

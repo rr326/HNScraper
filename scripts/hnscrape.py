@@ -7,6 +7,7 @@ import gevent
 
 #import threading  # Must be after monkey.patch
 from hnutils import config
+#from hnutils.newhn_classes import newGetHNPosts
 
 if __name__=='__main__':
     # Do not monkey patch when a library - it messes up ipython (which I use for testing)
@@ -131,6 +132,49 @@ def postHNWorker(postHNQueue):
 
     return
 
+
+# def newGetHNWorker(HNQueue):
+#     while True:
+#         try:
+#             posts = newGetHNPosts()
+#             HNQueue.put(posts)
+#         except Exception as e:
+#             logger.error('newGetHNWorker: Failed. Error {0}'.format(e))
+#         gevent.sleep(config.NEW_WAIT)
+#
+#     return
+#
+# def newPostHNWorker(HNQueue):
+#     # couch=couchdb.Server(config.COUCH_SERVER)
+#     # couch.resource.credentials=(config.COUCH_UN, config.COUCH_PW)
+#     # db=couch[config.COUCH_DB]
+#     # db.info()  # Test connection before catching exceptions.
+#     # logger.info('newPostHNWorker: Connection with couchdb established.')
+#     #
+#     # while True:
+#     #     try:
+#     #         posts = HNQueue.get(block=True, timeout=None)
+#     #         i=0
+#     #         for postSnap in hnPage.postSnaps:
+#     #             try:
+#     #                 postSnap.addOrUpdateCouch(db, hnPage.is_test_data)
+#     #                 i+=1
+#     #             except Exception as e:
+#     #                 logger.error('newpostHNWorker. Failure posting rec to couch. id: {0}'.format(postSnap.data['id'] if 'id' in postSnap.data else '<id not found>'))
+#     #                 logger.error('  >> e: {1}\n  data: \n{0}'.format(pformat(postSnap.data), e))
+#     #         logger.progress('POSTED: {0} records to couch'.format(i))
+#     #         if config.MOCK_OUTPUT:
+#     #             logger.warn('newpostHNWorker: MOCKED - not actually posting')
+#     #         stats.addPosted(i)
+#     #     except Exception as e:
+#     #         logger.error('newpostHNWorker - HNQueue.get errored: {0}'.format(e))
+#     #         stats.addError()
+#
+#
+#     return
+
+
+
 def statsWorker():
     """Wake up every hour and log stats, and then reset them"""
     logger.info('STATS: Starting. Will report out every {0:.1g} hours'.format(
@@ -156,6 +200,11 @@ def main(args):
     jobs.append(gevent.spawn(getHNWorker, postHNQueue))
     jobs.append(gevent.spawn(postHNWorker, postHNQueue))
     jobs.append(gevent.spawn(statsWorker))
+
+    # newHNQueue = gevent.queue.Queue()
+    # jobs.append(gevent.spawn(newGetHNWorker, newHNQueue))
+    # jobs.append(gevent.spawn(newPostHNWorker, newHNQueue))
+
 
     gevent.joinall(jobs)
 
