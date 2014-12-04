@@ -5,7 +5,7 @@ import logging
 from datetime import datetime
 from gevent.pool import Group
 from pprint import pformat
-from hn_classes import datetimeToStr
+from hn_classes import datetimeToStr, HNPostSnap
 from time import time as now
 
 
@@ -14,25 +14,29 @@ class Stories(object):
         self.timestamp = now()
         self.timestamp_str = datetimeToStr(datetime.utcfromtimestamp(self.timestamp))
 
+        self.is_test_data=config.MOCK_OUTPUT or config.MOCK_INPUT or config.TEST_RUN
 
         self.storyids = storyids
-        self.postSnaps = self.getPostSnaps()
-        self.supplementPostSnaps()
+        self.stories = self.getStories()
+        self.supplementStories()
         self.doComments()
         self.removeKids()
 
+        self.postSnaps=[]
+        self.storiesToPostSnaps()
+
     def __len__(self):
-        return len(self.postSnaps)
+        return len(self.stories)
 
     def __repr__(self):
-        return pformat(self.postSnaps)
+        return pformat(self.stories)
 
-    def getPostSnaps(self):
+    def getStories(self):
         """
         return a list of story dicts
         """
 
-        logging.debug('getPostSnaps: about to get {0} postSnaps'.format(len(self.storyids)))
+        logging.debug('getStories: about to get {0} stories'.format(len(self.storyids)))
 
         group = Group()
         getstory = lambda storyid: firebase.get('/v0/item', storyid)
@@ -43,12 +47,12 @@ class Stories(object):
 
     def doComments(self):
         # Right now, just going to set to 0
-        for postSnap in self.postSnaps:
+        for postSnap in self.stories:
             postSnap['comments'] = 0
 
-    def supplementPostSnaps(self):
-        # Updates postSnaps in a story list
-        for rank, postSnap in enumerate(self.postSnaps, start=1):
+    def supplementStories(self):
+        # Updates stories in a story list
+        for rank, postSnap in enumerate(self.stories, start=1):
             postSnap['doc_type'] = 'post' if \
                 not config.MOCK_INPUT and not config.MOCK_OUTPUT and not config.TEST_RUN \
                 else 'test_data'
@@ -65,13 +69,15 @@ class Stories(object):
             postSnap['href'] = postSnap.pop('url', None)
             postSnap['author'] = postSnap.pop('by', None)
 
-
-
-
     def removeKids(self):
-        for snap in self.postSnaps:
+        for snap in self.stories:
             if 'kids' in snap:
                 del snap['kids']
+
+    def storiesToPostSnaps(self):
+        for story in self.stories:
+            postSnap = HNPostSnap(story)
+            self.postSnaps.append(postSnap)
 
 
 def newGetHNPosts():
@@ -83,8 +89,8 @@ def newGetHNPosts():
         logging.error('newGetHNPosts exception: {0}'.format(e))
     else:
         logging.log(config.logging.PROGRESS,'GOT:  {0} records'.format(len(stories)))
-        print(stories)
 
-    exit()
+        #print(stories.postSnaps)
+
 
     return stories

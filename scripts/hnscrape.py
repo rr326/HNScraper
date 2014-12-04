@@ -155,7 +155,7 @@ def newPostHNWorker(HNQueue):
     #     try:
     #         posts = HNQueue.get(block=True, timeout=None)
     #         i=0
-    #         for postSnap in hnPage.postSnaps:
+    #         for postSnap in hnPage.stories:
     #             try:
     #                 postSnap.addOrUpdateCouch(db, hnPage.is_test_data)
     #                 i+=1
@@ -203,7 +203,7 @@ def main(args):
 
     newHNQueue = gevent.queue.Queue()
     jobs.append(gevent.spawn(newGetHNWorker, newHNQueue))
-    jobs.append(gevent.spawn(newPostHNWorker, newHNQueue))
+    jobs.append(gevent.spawn(postHNWorker, newHNQueue))
 
 
     gevent.joinall(jobs)

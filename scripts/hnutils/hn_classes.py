@@ -48,7 +48,8 @@ class HNPost(object):
     def __init__(self, postSnap=None, existingPostData=None):
         self.data={}
         self.data['doc_type']='post'
-        self.globalFields=['id','title','href','author' , 'domain', 'created']
+        self.globalFields=['id','title','href','author' , 'domain', 'created',
+                           'type', 'time', 'source', 'text', 'doc_type']
         if postSnap and existingPostData:
             raise Exception('HNPost - __init__ from postSnap OR existingPostData, not both')
 
@@ -136,6 +137,7 @@ class HNPostSnap(object):
             if is_test_data:
                 post.markAsTest()
             db.update([post.getData()])
+            #logging.debug('POSTED:\n{0}'.format(pformat(post.getData())))
 
 
 class HNPage(object):

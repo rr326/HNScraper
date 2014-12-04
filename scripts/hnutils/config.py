@@ -98,13 +98,13 @@ configs = {
         "LOGLEVEL" :logging.DEBUG,
         "LONG_WAIT" : 30,
         "SHORT_WAIT": 5,
-        "NEW_WAIT": 30,
+        "NEW_WAIT": 300,
         "STATS_HOURS": 1/6,
         "MOCK_INPUT": False,
         "MOCK_OUTPUT": False,
         "TEST_RUN": True,
         "server": "test",
-        "NEW_NUMTOGET": 5
+        "NEW_NUMTOGET": 60
     }
 }
 CHOSEN_CONFIG = "test"  # Default config bundle
