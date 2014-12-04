@@ -99,7 +99,7 @@ configs = {
         "LONG_WAIT" : 30,
         "SHORT_WAIT": 5,
         "NEW_WAIT": 30,
-        "STATS_HOURS": 1/(3600/20),
+        "STATS_HOURS": 1/6,
         "MOCK_INPUT": False,
         "MOCK_OUTPUT": False,
         "TEST_RUN": True,
@@ -149,7 +149,7 @@ def update_config(chosen_config, configs):
     # Manually set PAGES TO GET
     globals()["PAGES_TO_GET"] = \
         [{'page': 'http://news.ycombinator.com/news', 'depth': 0, 'wait': config['SHORT_WAIT']},
-         {'page': 'http://news.ycombinator.com/news?p=2', 'depth': 0, 'wait': ['LONG_WAIT']}
+         {'page': 'http://news.ycombinator.com/news?p=2', 'depth': 0, 'wait': config['LONG_WAIT']}
         ]
 
     print "\nConfiguration Bundle Set: {0}:\n==================".format(chosen_config)
