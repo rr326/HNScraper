@@ -103,7 +103,8 @@ configs = {
         "MOCK_INPUT": False,
         "MOCK_OUTPUT": False,
         "TEST_RUN": True,
-        "server": "test"
+        "server": "test",
+        "NEW_NUMTOGET": 5
     }
 }
 CHOSEN_CONFIG = "test"  # Default config bundle
