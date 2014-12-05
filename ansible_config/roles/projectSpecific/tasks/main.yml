@@ -58,7 +58,8 @@
 -   command: a2ensite {{ SITE_SUFFIX }}.conf
 -   service: name=apache2 state=restarted
 
-
+-   name: Create scraper log directory
+    file: path=/var/log/{{SITE_SUFFIX}} state=directory group=www-data owner=www-data mode=770
 
 
 

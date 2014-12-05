@@ -8,6 +8,7 @@ from pprint import pformat
 from hn_classes import datetimeToStr, HNPostSnap
 from time import time as now
 
+logger = logging.getLogger(__name__)
 
 class Stories(object):
     def __init__(self, storyids):
@@ -36,7 +37,7 @@ class Stories(object):
         return a list of story dicts
         """
 
-        logging.debug('getStories: about to get {0} stories'.format(len(self.storyids)))
+        logger.debug('getStories: about to get {0} stories'.format(len(self.storyids)))
 
         group = Group()
         getstory = lambda storyid: firebase.get('/v0/item', storyid)
@@ -81,16 +82,15 @@ class Stories(object):
 
 
 def newGetHNPosts():
+    stories = None
     try:
         topstories = firebase.get('/v0/topstories', None)
         stories = Stories(topstories[:config.NEW_NUMTOGET])
 
     except Exception as e:
-        logging.error('newGetHNPosts exception: {0}'.format(e))
+        logger.error('newGetHNPosts exception: {0}'.format(e))
     else:
-        logging.log(config.logging.PROGRESS,'GOT:  {0} records'.format(len(stories)))
-
-        #print(stories.postSnaps)
+        logger.log(config.PROGRESS,'GOT:  {0} records'.format(len(stories)))
 
 
     return stories

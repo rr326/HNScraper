@@ -30,6 +30,7 @@ logger = logging.getLogger() # Make sure you are using the root logger
 
 def loggingSetup(log_level, logfile, errorsOnlyLog, noScreen=False):
     logger.setLevel(log_level)
+    logging.getLogger('requests').setLevel(logging.WARN)  # requests is logging connections I don't want to see
 
     # File logging
     h=config.logging.FileHandler(logfile)
@@ -223,7 +224,7 @@ def parseArgs():
     parser.add_argument('--nostdout', action='store_true', help='Run without printing to stdout')
     parser.add_argument('--pwfile', help='json file with COUCH_UN & COUCH_PW keys ', required=True)
     parser.add_argument('--config',
-        help='named configuration bundle (in config.py) to use ', required=False)
+        help='named configuration bundle (in config.py) to use ', required=True)
 
     args = parser.parse_args()
 
@@ -233,7 +234,7 @@ if __name__ == '__main__':
     args = parseArgs()
     config.setCredentials(args.pwfile)
     if args.config:
-        config.update_config(args.config, config.configs)
+        config.update_config(args.config, config.configs, config.servers)
 
     if args.daemon:
         with daemon.DaemonContext():

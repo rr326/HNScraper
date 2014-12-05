@@ -1,27 +1,52 @@
 from __future__ import division
-import logging, os, json
+
+import logging
+import os
+import os.path
+import json
 
 #
-# Logging
+# Helper functions
 #
-logging.PROGRESS = 15
-# noinspection PyUnresolvedReferences
-logging.addLevelName(logging.PROGRESS, 'PROGRESS')
-# noinspection PyUnresolvedReferences
-def log_progress(self, msg, *args, **kws):
-    if self.isEnabledFor(logging.PROGRESS):
-        self._log(logging.PROGRESS, msg, args, **kws)
-logging.Logger.progress=log_progress
+PROGRESS = 15
+def add_progress_to_logging(logging_module):
+    logging_module.PROGRESS = PROGRESS
+    logging_module.addLevelName(logging_module.PROGRESS, 'PROGRESS')
+    def log_progress(self, msg, *args, **kws):
+        if self.isEnabledFor(logging_module.PROGRESS):
+            self._log(logging_module.PROGRESS, msg, args, **kws)
+
+    logging_module.Logger.progress = log_progress
+    return
+
+def test_log_dir(log_dir):
+    try:
+        fname = os.path.join(log_dir, 'test')
+        with open(fname, 'w') as fp:
+            fp.write('test')
+        os.remove(fname)
+    except IOError:
+        logging.error('Couldnt write to log dir. Failing. {0}'.format(log_dir),
+            exc_info=True)
+        raise
+
+
+
+#
+# Main configuration
+#
+
+add_progress_to_logging(logging)
 
 SCRIPT_DIR=os.path.normpath(os.path.join(os.path.split(os.path.realpath(__file__))[0],'../'))
+LOG_DIR='/var/log/hind-cite-scraper/'
+test_log_dir(LOG_DIR)
 
-LOGFILE=os.path.join(SCRIPT_DIR, 'log', 'hnscrape.log')
-LOGLEVEL=logging.PROGRESS
-
+LOGFILE=os.path.join(LOG_DIR, 'hnscrape.log')
+LOGLEVEL=PROGRESS
 
 PAGE_RETRY=5
 PAGE_RETRY_WAIT=30
-
 
 servers = {
     'prod': {
@@ -45,7 +70,7 @@ COUCH_ID_VIEW='by/id'
 NEW_NUMTOGET=60
 
 # For alerting - 1 line per error.
-ERRORS_ONLY_LOG=os.path.join(SCRIPT_DIR, 'log', 'errors_only.log')
+ERRORS_ONLY_LOG=os.path.join(LOG_DIR, 'hnscrape_errors_only.log')
 
 # hnmonitor
 RUNFREQUENCY = 6  # hours (integer >= 1)
@@ -64,27 +89,22 @@ EMAIL_RECIPIENTS=['rrosen326@gmail.com']
 EMAIL_SUBJECT='hnscrape monitor results'
 EMAIL_TEXT='hnscraper does not appear to be working properly.\nCheck log file (hnscrape.log) for details.\n'
 
-
-
 #
 # Testing
 #
 MOCK_PAGE=os.path.join(SCRIPT_DIR,  'test/pageSource')
 HNMONITOR_FORCE_SEND=False    # Force sending
 
-
-
-
-
 #
 # Configuration overrides
 #
 LONG_WAIT = SHORT_WAIT = NEW_WAIT = STATS_HOURS = MOCK_INPUT = MOCK_OUTPUT = \
-TEST_RUN = COUCH_SERVER = COUCH_DB = None  # To help pycharm find the variables
+TEST_RUN = COUCH_SERVER = COUCH_DB = PAGES_TO_GET = None  # To help pycharm find the variables
 
+# A config bundle must be set via command line arg and update_config()
 configs = {
     "production": {
-        "LOGLEVEL" :logging.PROGRESS,
+        "LOGLEVEL" :PROGRESS,
         "LONG_WAIT" : 285,
         "SHORT_WAIT": 15,
         "NEW_WAIT": 300,
@@ -107,19 +127,16 @@ configs = {
         "NEW_NUMTOGET": 60
     }
 }
-CHOSEN_CONFIG = "test"  # Default config bundle
-
-
-
 
 
 '''
-CouchDB Views
+*** Don't forget CouchDB Views ***
 The database needs to be set up with the view: _design/by/id
 
 ==> This is in the hinsight couchapp directory
 
 '''
+
 
 
 def setCredentials(pw_file):
@@ -136,7 +153,7 @@ def setCredentials(pw_file):
 
 
 # This updates this modules globals based on a chosen configuration
-def update_config(chosen_config, configs):
+def update_config(chosen_config, configs, servers):
     assert chosen_config in configs
     config = configs[chosen_config]
 
@@ -149,17 +166,18 @@ def update_config(chosen_config, configs):
 
     # Manually set PAGES TO GET
     globals()["PAGES_TO_GET"] = \
-        [{'page': 'http://news.ycombinator.com/news', 'depth': 0, 'wait': config['SHORT_WAIT']},
-         {'page': 'http://news.ycombinator.com/news?p=2', 'depth': 0, 'wait': config['LONG_WAIT']}
+        [{'page': 'http://news.ycombinator.com/news', 'depth': 0,
+          'wait': config['SHORT_WAIT']},
+         {'page': 'http://news.ycombinator.com/news?p=2', 'depth': 0,
+          'wait': config['LONG_WAIT']}
         ]
 
-    print "\nConfiguration Bundle Set: {0}:\n==================".format(chosen_config)
+    msg = "\nConfiguration Bundle Set: {0}:\n==================\n".format(
+        chosen_config)
     for key in configs["test"].keys() + ["PAGES_TO_GET"]:
-        print "{0:20} {1}".format(key, globals().get(key))
-    print
+        msg += "{0:20} {1}\n".format(key, globals().get(key))
+    msg += '\n'
+    logging.info(msg)
+
     return
-
-update_config(CHOSEN_CONFIG, configs)
-
-
 

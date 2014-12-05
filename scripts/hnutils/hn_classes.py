@@ -7,7 +7,7 @@ import config
 import logging
 import re
 
-
+logger = logging.getLogger(__name__)
 
 def mymatch(regex, text, groupNum=1, retType=None):
     match = re.match(regex, text)
@@ -130,14 +130,14 @@ class HNPostSnap(object):
         if config.MOCK_OUTPUT:
             # Mock - don't actually post.
             post.markAsTest()
-            logging.debug('Local debug. Not posting to Couch. '
+            logger.debug('Local debug. Not posting to Couch. '
                          'WOULD post:\n{0}'.format(pformat(post.getData())))
             return
         else:  # Save it
             if is_test_data:
                 post.markAsTest()
             db.update([post.getData()])
-            #logging.debug('POSTED:\n{0}'.format(pformat(post.getData())))
+            #logger.debug('POSTED:\n{0}'.format(pformat(post.getData())))
 
 
 class HNPage(object):
@@ -155,7 +155,7 @@ class HNPage(object):
         try:
             self.processHNPage()
         except Exception as e:
-            logging.error('HNPage. Failed to parse page: {0}:{1}. Error:\n{2}\nHtml:\n******\n{3}\n*******'.format(
+            logger.error('HNPage. Failed to parse page: {0}:{1}. Error:\n{2}\nHtml:\n******\n{3}\n*******'.format(
                 self.pageName, self.pageDepth, e, self.html))
 
 
@@ -197,7 +197,7 @@ class HNPage(object):
         try:
             tds=soup.contents
             if len(tds) != 3:
-                logging.error('processArticleTitle Aborting - Unexpected number of tds in article body: {0}. Expected 3. Body: \n{1}'.format(len(tds), soup.prettify()))
+                logger.error('processArticleTitle Aborting - Unexpected number of tds in article body: {0}. Expected 3. Body: \n{1}'.format(len(tds), soup.prettify()))
                 return d
             d['rank']=asInt(mymatch('([0-9]*)\.', tds[0].text))
             d['title']=tds[2].a.text
@@ -222,7 +222,7 @@ class HNPage(object):
             if tds[2].span:
                 d['domain']=str(mymatch(' *\(([^)]*)\) *', tds[2].span.text))
         except Exception as e:
-            logging.debug('processPostTitle - Error:\n{0}\n{1}'.format(e, soup.prettify()))
+            logger.debug('processPostTitle - Error:\n{0}\n{1}'.format(e, soup.prettify()))
 
         return d
 
@@ -236,7 +236,7 @@ class HNPage(object):
             elif match.group(2)[:3]=='day':
                 created=datetime.fromtimestamp(self.timestamp)-timedelta(days=int(match.group(1)))
             else:
-                logging.warning('processPostPoints - unexpected create time: {0}'.format(match.group(0)))
+                logger.warning('processPostPoints - unexpected create time: {0}'.format(match.group(0)))
                 created=None
 
             if created:
@@ -244,7 +244,7 @@ class HNPage(object):
             else:
                 created=match.group(0)
         else:
-            logging.warning('processTimeStr - unexpected create time - failed to match: {0}'.format(timeStr))
+            logger.warning('processTimeStr - unexpected create time - failed to match: {0}'.format(timeStr))
             created=timeStr
         return created
 
@@ -253,7 +253,7 @@ class HNPage(object):
         try:
             tds=soup.contents
             if len(tds) != 2:
-                logging.error('processArticlePoints Aborting - Unexpected number of tds in article body: {0}. Expected 2. Body: \n{1}'.format(len(tds), soup.prettify()))
+                logger.error('processArticlePoints Aborting - Unexpected number of tds in article body: {0}. Expected 2. Body: \n{1}'.format(len(tds), soup.prettify()))
                 return d
             if tds[1].span: # Non-jobs post
                 d['points']=asInt(mymatch('([0-9]*) points',tds[1].span.text))
@@ -263,7 +263,7 @@ class HNPage(object):
             else: # jobs have no points
                 d['created']=self.processTimeStr(tds[1].text)
         except Exception as e:
-            logging.debug('processArticlePoints - Error:\n{0}\n{1}'.format(e, soup.prettify()))
+            logger.debug('processArticlePoints - Error:\n{0}\n{1}'.format(e, soup.prettify()))
 
         return d
 
