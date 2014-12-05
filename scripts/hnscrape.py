@@ -237,8 +237,7 @@ def parseArgs():
 if __name__ == '__main__':
     args = parseArgs()
     config.setCredentials(args.pwfile)
-    if args.config:
-        config.update_config(args.config, config.configs, config.servers)
+    config.update_config(args.config, config.configs, config.servers)
 
     if args.daemon:
         with daemon.DaemonContext():

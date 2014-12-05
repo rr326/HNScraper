@@ -17,12 +17,12 @@ from email.mime.text import MIMEText
 import couchdb
 import daemon
 
-from hnscrape import datetimeToStr
-from scripts.hnutils import config
+from hnutils.hn_classes import datetimeToStr
+from hnutils import config
 
 logger = config.logging.getLogger('hnmonitor')
 
-def loggingSetup(logfile, noScreen=False):
+def loggingSetup(logfile):
     log_level = config.logging.INFO # Hardcode, but run minimally
 
     logger.setLevel(log_level)
@@ -201,7 +201,7 @@ def alert(tooManyErrors, tooFewPosts):
 
 # noinspection PyShadowingNames
 def main(args):
-    loggingSetup(config.LOGFILE, noScreen=args.daemon or args.nostdout)
+    loggingSetup(config.LOGFILE)
     logger.info('hnmonitor: starting. Daemon-mode = {0}'.format(args.daemon))
 
     couch=CouchData()
@@ -237,7 +237,7 @@ def parseArgs():
     parser.add_argument('-d', '--daemon', action='store_true', help='Run as daemon')
     parser.add_argument('--nostdout', action='store_true', help='Run without printing to stdout')
     parser.add_argument('--pwfile', help='json file with COUCH_UN & COUCH_PW keys ', required=True)
-
+    parser.add_argument('--config', help='named configuration bundle (in config.py) to use ',required=True)
 
     args=parser.parse_args()
 
@@ -246,6 +246,8 @@ def parseArgs():
 if __name__ == '__main__':
     args = parseArgs()
     config.setCredentials(args.pwfile)
+    config.update_config(args.config, config.configs, config.servers)
+
 
     if args.daemon:
         with daemon.DaemonContext():
