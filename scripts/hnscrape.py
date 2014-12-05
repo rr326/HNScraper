@@ -29,6 +29,10 @@ logger = logging.getLogger() # Make sure you are using the root logger
 
 
 def loggingSetup(log_level, logfile, errorsOnlyLog, noScreen=False):
+    # Remove any default handlers
+    for handler in logger.handlers:
+        logger.removeHandler(handler)
+
     logger.setLevel(log_level)
     logging.getLogger('requests').setLevel(logging.WARN)  # requests is logging connections I don't want to see
 
