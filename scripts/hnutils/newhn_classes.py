@@ -90,7 +90,7 @@ def newGetHNPosts():
     except Exception as e:
         logger.error('newGetHNPosts exception: {0}'.format(e))
     else:
-        logger.log(config.PROGRESS,'GOT:  {0} records'.format(len(stories)))
+        logger.progress('GOT:  {0} records'.format(len(stories)))
 
 
     return stories

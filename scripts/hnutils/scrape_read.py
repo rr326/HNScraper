@@ -35,7 +35,7 @@ def getPage(url):
             continue
 
     if r.ok:
-        logger.log(config.PROGRESS, 'GOT:    {0}'.format(url))
+        logger.progress('GOT:    {0}'.format(url))
         stats.addGot()
         return r.content
     else:

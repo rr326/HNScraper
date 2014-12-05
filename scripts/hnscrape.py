@@ -33,24 +33,24 @@ def loggingSetup(log_level, logfile, errorsOnlyLog, noScreen=False):
     logging.getLogger('requests').setLevel(logging.WARN)  # requests is logging connections I don't want to see
 
     # File logging
-    h=config.logging.FileHandler(logfile)
+    h=logging.FileHandler(logfile)
     h.setLevel(log_level)
-    formatter= config.logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    formatter= logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     h.setFormatter(formatter)
     logger.addHandler(h)
 
     if not noScreen:
         # Stdout
-        h= config.logging.StreamHandler()
+        h= logging.StreamHandler()
         h.setLevel(log_level)
-        formatter= config.logging.Formatter('%(levelname)s - %(message)s')
+        formatter= logging.Formatter('%(levelname)s - %(message)s')
         h.setFormatter(formatter)
         logger.addHandler(h)
 
     # Errors only - don't display message since I only want 1 line per error
-    h= config.logging.FileHandler(errorsOnlyLog)
-    h.setLevel(config.logging.ERROR)
-    formatter= config.logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - Line: %(lineno)s', datefmt='%Y-%m-%d %H:%M:%S')
+    h= logging.FileHandler(errorsOnlyLog)
+    h.setLevel(logging.ERROR)
+    formatter= logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - Line: %(lineno)s', datefmt='%Y-%m-%d %H:%M:%S')
     h.setFormatter(formatter)
     logger.addHandler(h)
 
