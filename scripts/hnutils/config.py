@@ -154,7 +154,11 @@ def setCredentials(pw_file):
 
 # This updates this modules globals based on a chosen configuration
 def update_config(chosen_config, configs, servers):
-    assert chosen_config in configs
+    try:
+        assert chosen_config in configs
+    except AssertionError:
+        logging.error('chosen_config ({0}) not in configs:\n{1}'.format(chosen_config, configs))
+        raise
     config = configs[chosen_config]
 
     for key in config:

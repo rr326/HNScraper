@@ -61,6 +61,10 @@
 -   name: Create scraper log directory
     file: path=/var/log/{{SITE_SUFFIX}} state=directory group=www-data owner=www-data mode=770
 
+# Need /opt to be writeable by admin group (main user is member of it)
+-   name: Set /opt to be group owned by 'admin' and executable
+    file: path=/opt group=admin mode=775
+
 
 
 
