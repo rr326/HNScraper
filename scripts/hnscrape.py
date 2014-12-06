@@ -7,7 +7,7 @@ import gevent
 
 #import threading  # Must be after monkey.patch
 from hnutils import config
-from hnutils.newhn_classes import newGetHNPosts
+from hnutils.hn_get_api import getHNPosts_API
 
 if __name__=='__main__':
     # Do not monkey patch when a library - it messes up ipython (which I use for testing)
@@ -88,7 +88,7 @@ class HNWorkList(object):
         return url,  self.todoList[self.curPage]['page'], self.curDepth, wait
 
 
-def getHNWorker(postHNQueue):
+def getHNWorker_Scrape(postHNQueue):
     workList=HNWorkList()
 
     more=''
@@ -102,7 +102,7 @@ def getHNWorker(postHNQueue):
             postHNQueue.put(hnPage)
             more=hnPage.more
         except Exception:
-            logger.error('getHNWorker: Failed on page {0}. Skipping page.'.format(url))
+            logger.error('getHNWorker_Scrape: Failed on page {0}. Skipping page.'.format(url))
         # Note - you need, at least, a sleep(0) since none of this is blocking, even though it is monkey patched
         gevent.sleep(wait_time)
 
@@ -138,46 +138,16 @@ def postHNWorker(postHNQueue):
     return
 
 
-def newGetHNWorker(HNQueue):
+def getHNWorker_API(HNQueue):
     while True:
         try:
-            posts = newGetHNPosts()
+            posts = getHNPosts_API()
             HNQueue.put(posts)
         except Exception as e:
-            logger.error('newGetHNWorker: Failed. Error {0}'.format(e))
+            logger.error('getHNWorker_API: Failed. Error {0}'.format(e))
         gevent.sleep(config.NEW_WAIT)
 
     return
-
-def newPostHNWorker(HNQueue):
-    # couch=couchdb.Server(config.COUCH_SERVER)
-    # couch.resource.credentials=(config.COUCH_UN, config.COUCH_PW)
-    # db=couch[config.COUCH_DB]
-    # db.info()  # Test connection before catching exceptions.
-    # logger.info('newPostHNWorker: Connection with couchdb established.')
-    #
-    # while True:
-    #     try:
-    #         posts = HNQueue.get(block=True, timeout=None)
-    #         i=0
-    #         for postSnap in hnPage.stories:
-    #             try:
-    #                 postSnap.addOrUpdateCouch(db, hnPage.is_test_data)
-    #                 i+=1
-    #             except Exception as e:
-    #                 logger.error('newpostHNWorker. Failure posting rec to couch. id: {0}'.format(postSnap.data['id'] if 'id' in postSnap.data else '<id not found>'))
-    #                 logger.error('  >> e: {1}\n  data: \n{0}'.format(pformat(postSnap.data), e))
-    #         logger.progress('POSTED: {0} records to couch'.format(i))
-    #         if config.MOCK_OUTPUT:
-    #             logger.warn('newpostHNWorker: MOCKED - not actually posting')
-    #         stats.addPosted(i)
-    #     except Exception as e:
-    #         logger.error('newpostHNWorker - HNQueue.get errored: {0}'.format(e))
-    #         stats.addError()
-
-
-    return
-
 
 
 def statsWorker():
@@ -201,15 +171,11 @@ def main(args):
 
     jobs=[]
 
-    # postHNQueue=gevent.queue.Queue()
-    # jobs.append(gevent.spawn(getHNWorker, postHNQueue))
-    # jobs.append(gevent.spawn(postHNWorker, postHNQueue))
-    # jobs.append(gevent.spawn(statsWorker))
-
-    newHNQueue = gevent.queue.Queue()
-    jobs.append(gevent.spawn(newGetHNWorker, newHNQueue))
-    jobs.append(gevent.spawn(postHNWorker, newHNQueue))
-
+    HNQueue = gevent.queue.Queue()
+    jobs.append(gevent.spawn(getHNWorker_API, HNQueue))
+    # jobs.append(gevent.spawn(getHNWorker_Scrape, postHNQueue)) # OLD
+    jobs.append(gevent.spawn(postHNWorker, HNQueue))
+    jobs.append(gevent.spawn(statsWorker))
 
     gevent.joinall(jobs)
 
@@ -244,7 +210,3 @@ if __name__ == '__main__':
             main(args)
     else:
         main(args)
-
-
-
-# TODO: Should encode JOBS with a date or something - there is going to be a collision otherwise

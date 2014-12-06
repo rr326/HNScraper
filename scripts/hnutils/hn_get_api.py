@@ -81,14 +81,19 @@ class Stories(object):
             self.postSnaps.append(postSnap)
 
 
-def newGetHNPosts():
+def getHNPosts_API():
+    """
+    Get top posts from firebase (instead of scraping)
+    DEFICIENCY: Does NOT get # comments - no easy way to do so
+       other than a ton of individual api calls
+    """
     stories = None
     try:
         topstories = firebase.get('/v0/topstories', None)
         stories = Stories(topstories[:config.NEW_NUMTOGET])
 
     except Exception as e:
-        logger.error('newGetHNPosts exception: {0}'.format(e))
+        logger.error('getHNPosts_API exception: {0}'.format(e))
     else:
         logger.progress('GOT:  {0} records'.format(len(stories)))
 

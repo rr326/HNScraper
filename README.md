@@ -15,19 +15,15 @@ Tools for scraping Hacker News and uploading to Cloudant.
 
 ## Installation
 
-1. Install python 2.7 and all used libraries (using pip). Feel free to use a virtualenv. EG:
-
-    mkdir /home/rrosen326/pythonVENV
-    virtualenv /home/rrosen326/pythonVENV/weprod
-    source  /home/rrosen326/pythonVENV/weprod/bin/activate
-    pip install -r /home/rrosen326/hnscrape/scripts/python_requirements.txt
+1. This uses servi (https://github.com/rr326/servi) and ansible. You can use straight ansible or:
+    * servi rans <host_alias>
 
 2. Modify config.py
 3. Setup whatever you want to autorun these two functions. (Use the --daemon argument) If using upstart:
     * git pull origin master
     * sudo cp scripts/hn_credentials.json /etc   (Note - this is the default location. If you change this location,
     need to also modify it in *.conf)
-    * Update /etc/hn_credentials.json with proper passwords
+    * Update /opt/hn_credentials.json with proper passwords
     * sudo scripts/init_upstart.sh
 
 4. Monitor the log files a bit to make sure all is well, then you're done
@@ -39,13 +35,14 @@ Tools for scraping Hacker News and uploading to Cloudant.
 
 * BIG BUG:
     * Make sure scraper sets timestamp str IN UTC.  Right now, if the server is in local time, the timestamp str will also be local time, which is a giant mess.
+* Comments - with the new firebase API, getting the comment counts requires a lot of API calls. Not doing it. Hopefully they will come up with an easier way.
 
 
 
 ## Notes - hnscrape
-
-* PG says you should be able to scrape 'a couple a minute'. Doing that I quickly got ip-banned. Now we do 2 pages every 5 minutes, and don't seem to have any problems.
-* We scrape news.ycombinator.com/news & news.ycombintor.com/news2
-* If he changes the format, we'll get an alert with a bunch of errors. Then we need to look at the error log, figure out what's wrong, take into account that new format, and restart. I don't know if there are no more gotchas out there, or they will happen regularly. We just have to watch it.
-* One slight oddity: each record has a id field from hn.  Jobs postings, however, do not always publish their internal id, so I use the href for those few records.
+* Originally this scraped the home page and page 2
+* Now this uses new hacker news api from firebase: https://github.com/HackerNews/API
+* The data has a giant hole from 10/5/14 - 12/5/14 - I apparently turned off the scraper and monitor when 
+  doing some server maintenance and didn't realize it.  Ooops!
+  
 

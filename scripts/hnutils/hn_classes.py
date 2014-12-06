@@ -140,6 +140,9 @@ class HNPostSnap(object):
             #logger.debug('POSTED:\n{0}'.format(pformat(post.getData())))
 
 
+#
+# OLD - replaced by firebase api scraper - hn_get_api.py
+#
 class HNPage(object):
     def __init__(self, html, pageName, pageDepth):
         self.timestamp=now()
