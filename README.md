@@ -15,18 +15,18 @@ Tools for scraping Hacker News and uploading to Cloudant.
 
 ## Installation
 
-1. This uses servi (https://github.com/rr326/servi) and ansible. You can use straight ansible or:
-    * servi rans <host_alias>
-
-2. Modify config.py
-3. Setup whatever you want to autorun these two functions. (Use the --daemon argument) If using upstart:
-    * git pull origin master
-    * sudo cp scripts/hn_credentials.json /etc   (Note - this is the default location. If you change this location,
-    need to also modify it in *.conf)
-    * Update /opt/hn_credentials.json with proper passwords
-    * sudo scripts/init_upstart.sh
-
-4. Monitor the log files a bit to make sure all is well, then you're done
+1. Install [servi](https://github.com/rr326/servi)
+1. Credentials
+    * Create an hn_credentials.json with proper UN/PW, based on scripts/hn_credentials.
+    * Save it somewhere OUTSIDE any git repo
+    * Point to it with an environment variable: eg: export HIND_CITE_CRED_FILE="/xxx/PASSWORDS/hn_credentials.json"
+1. Test it all on vagrant
+    * vagrant up
+    * run it with --config test (test config bundle)
+1. Push it live
+    * servi rans -p prod
+    * scripts/pushtoprod.sh
+1. Monitor the log files a bit to make sure all is well, then you're done
    * When first running hnscrape,  in config.py set LOGLEVEL=logging.PROGRESS
    * When you are confident all is well, set LOGLEVEL=logging.INFO
 

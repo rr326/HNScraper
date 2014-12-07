@@ -104,7 +104,7 @@ TEST_RUN = COUCH_SERVER = COUCH_DB = PAGES_TO_GET = None  # To help pycharm find
 # A config bundle must be set via command line arg and update_config()
 configs = {
     "production": {
-        "LOGLEVEL" :PROGRESS,
+        "LOGLEVEL" : logging.INFO,
         "LONG_WAIT" : 285,
         "SHORT_WAIT": 15,
         "NEW_WAIT": 300,
@@ -115,7 +115,7 @@ configs = {
         "server": "prod"
     },
     "test": {
-        "LOGLEVEL" :logging.DEBUG,
+        "LOGLEVEL" : logging.DEBUG,
         "LONG_WAIT" : 30,
         "SHORT_WAIT": 5,
         "NEW_WAIT": 300,
